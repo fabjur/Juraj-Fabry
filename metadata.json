@@ -1,0 +1,6 @@
+{
+  "name": "2026 Salesapp Vision",
+  "description": "Nahrajte fotografie regálov a umelá inteligencia identifikuje produkty a ich ceny. Aplikácia zoradí výsledky podľa ceny a miery istoty pre efektívnu cenovú analýzu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

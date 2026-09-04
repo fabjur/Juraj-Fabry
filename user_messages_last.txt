@@ -1,0 +1,160 @@
+
+--- USER MESSAGE 26 (ID: 119) ---
+vo fotogalerii zobraz 1 a ten isty produkt len raz, zobraz pocet vyskytov na fotky tzv. facing. Dnes sa zobrazuje pod sebou, co je neprehladne
+
+--- USER MESSAGE 27 (ID: 123) ---
+refaktoru menu OSP. Vidim tam zalozky SOS, Promo akcie. Tie su tam navyse. Surove data ponechaj
+
+--- USER MESSAGE 28 (ID: 127) ---
+v menu naklady pridaj informaciu o pocte fotiek, ktore boli v analyze, pocte rozpoznanych prokuktov
+
+--- USER MESSAGE 29 (ID: 131) ---
+refaktoruj Novu analyzu tak, ze tam pridas moznost rucneho vybratia modelu gemini na analyzu. Defaultne bude gemini-2.5-flash, ale umozni aj 2.5 pro, pripadne 3.0 flash a 3.0 pro
+
+--- USER MESSAGE 30 (ID: 135) ---
+do menu Naklady uprav jednotkove ceny podla vybraneho modelu v Nova analyza. Defaultne nastav jednotkove ceny takto< Tu je kompletný prehľad a porovnanie všetkých diskutovaných modelov Gemini pre rok 2026. Tento súhrn slúži ako podklad pre rozhodovanie o nasadení do modulu Salesapp Vision.Ceny sú uvedené za 1 milión tokenov (približne 3 500 – 4 000 fotiek regálov pri vstupe).📋 Kompletný Cenník a Porovnanie (Január 2026)ModelVstup (Input)Výstup (Output)Cena za 1 fotku*Odporúčané použitieGemini 2.5 Flash$0.15$0.60~$0.00004Masový Audit (Cena/Výkon). Ideálne pre tisíce fotiek denne, kde stačí detekcia známych produktov.Gemini 3.0 Flash$0.50$3.00~$0.00013Smart Audit. Ak potrebujete vyššiu presnosť pri ťažko čitateľných cenovkách alebo "zložitých" regáloch.Gemini 2.5 Pro$1.25$10.00~$0.00035Analýza Trendov. Vhodné pre hĺbkové analýzy, nie pre bežný "hrubý" zber dát.Gemini 3.0 Pro$2.00$12.00~$0.00060Strategic Intelligence. Pre komplexné úlohy, napr. navrhovanie zmien planogramu na základe fotky.* Odhadovaná nákladová cena (len AI API) pri priemernej spotrebe 258 tokenov na 1 fotku.💡 Odporúčanie pre Salesapp VisionPre potreby retail auditu (On-Shelf Availability, Share of Shelf) odporúčam nasledujúcu stratégiu:Primárny Model: Gemini 2.5 FlashPrečo: Je bezkonkurenčne najlacnejší a dostatočne rýchly pre 95 % bežných fotiek z terénu. Pri miliónoch fotiek ročne je úspora oproti verzii 3.0 Flash až 3-násobná.Nasadenie: Denný rutinný zber dát, kontrola prítomnosti tovaru.Záložný Model: Gemini 3.0 FlashPrečo: Novšia generácia lepšie zvláda "halucinácie" a nejasné obrázky (napr. rozmazané fotky, zlé svetlo).Nasadenie: Použiť len vtedy, ak si model 2.5 Flash nie je istý (confidence score < 80 %), alebo pre špecifické audity (napr. čítanie malého textu na akciových cenovkách).Záver:Pre nacenenie klientovi (ROI) kalkulujte s nákladmi modelu 2.5 Flash, ale technologicky majte pripravený prepínač na 3.0 Flash pre náročnejšie segmenty trhu.
+
+--- USER MESSAGE 31 (ID: 142) ---
+refaktoruj priebeh analyz a cely proces tak, ze po dokonceni 1 analyzy a kliknuti na Nova Analyza sa zjednodusi proces predchadzajucej a automaticky sa ulozi. Data v jednotlivych analyzach sa nahradia datami novej analyzy. Nech je to logicky ciste a prehladne, data mame v Archive analyz, odkial si ich vieme opatovne nacitat
+
+--- USER MESSAGE 32 (ID: 146) ---
+v stave Prebieha analyza to nie je jasne. Zvyrazni priebeh analyzy stavovym ukazovatelom alebo najekym status barom, aby mal uzivatel informacie o tom, ze sa nieco deje. Tento priebeh vyzualizuj v kazdej casti apliakcie, OSP, SOS, promo akcie, Fotogaleria atd
+
+
+--- USER MESSAGE 33 (ID: 150) ---
+navrhni kompaktnejsie a logickejsie zobrazenie produktov a cien v menu OSP. Pri vela produktoch to nie je efektivne
+
+--- USER MESSAGE 34 (ID: 157) ---
+refaktoruj proces rozpoznania nazvu predajne z fotky. Fotky zo Salesapp obsahuju nazov predajne bud priamo v nazve suboru alebo su embedovane na fotke v spodnej casti. Ak ani to nejde, umozni rucne vytvorenie novej predajne, zabezpec kontrolu s existujucou databazou
+
+--- USER MESSAGE 35 (ID: 164) ---
+Nova funkcionalita> Pokročilá Detekcia Objektov (Viac než len SKU)
+Nestačí vidieť produkt. Aplikácia musí vidieť celok. Navrhni doplnenie funkcionality o 
+POS Materiály: Detekcia wobblerov, stopperov, stojanov a druhotných vystavení, paliet. Chceme filtrovat v jednotlivych menu aj podla POS materialov rozpoznanych na fotkach. Navrhni funkcionalitu a biznis logiku 
+
+Rozlíšenie "Ghost" produktov: Schopnosť rozlíšiť reálny produkt od obrázku produktu na zadnej stene regálu (častá chyba starších systémov).
+
+--- USER MESSAGE 36 (ID: 170) ---
+refaktoruj proces novej analyzy. Po nahrati fotiek a kliknuti zacat sa znova zobrazi okno co chceme analyzovat, to uz sme vybrali na zaciatku
+
+--- USER MESSAGE 37 (ID: 175) ---
+Fix the following errors:
+
+```
+Uncaught Error: Minified React error #310; visit https://react.dev/errors/310 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+```
+
+--- USER MESSAGE 38 (ID: 179) ---
+Fix the following errors:
+
+```
+Uncaught Error: Minified React error #310; visit https://react.dev/errors/310 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+```
+
+--- USER MESSAGE 39 (ID: 183) ---
+dopln menu POS Material. Rozpoznany POS material zobraz ako zoznam s uvedenim typu, predajne, nahladu fotky
+
+--- USER MESSAGE 40 (ID: 188) ---
+skontroluj cely kod, urob polishing kvoli vacsej efektivite a hladkemu chodu. Identifikuj oblasti narocne na vykon, kde sa proces zadrhava a navrhni optimalizaciu
+
+--- USER MESSAGE 41 (ID: 196) ---
+este raz skontroluj cely kod, urob polishing kvoli vacsej efektivite a hladkemu chodu. Identifikuj oblasti narocne na vykon, kde sa proces zadrhava a navrhni optimalizaciu ak po 1.kole je priestor na zlepsenie a znizenie narocnosti na pamat
+
+--- USER MESSAGE 42 (ID: 204) ---
+este raz skontroluj cely kod, urob polishing kvoli vacsej efektivite a hladkemu chodu. Identifikuj oblasti narocne na vykon, kde sa proces zadrhava a navrhni optimalizaciu ak po 2.kole je priestor na zlepsenie a znizenie narocnosti na pamat a dalsie atributy 
+
+--- USER MESSAGE 43 (ID: 212) ---
+este raz skontroluj cely kod, urob polishing kvoli vacsej efektivite a hladkemu chodu. Identifikuj oblasti narocne na vykon, kde sa proces zadrhava a navrhni optimalizaciu ak po 3.kole je priestor na zlepsenie a znizenie narocnosti na pamat a dalsie atributy
+
+--- USER MESSAGE 44 (ID: 220) ---
+este raz skontroluj a reviduj cely kod vratane zmien v prvych 3 kolach optimalizacie, urob polishing kvoli vacsej efektivite a hladkemu chodu. Identifikuj oblasti narocne na vykon, kde sa proces zadrhava a navrhni optimalizaciu ak po 4.kole je priestor na zlepsenie a znizenie narocnosti na pamat a dalsie atributy ovplyvnujuce vykon aplikacie.
+
+--- USER MESSAGE 45 (ID: 225) ---
+ako je teraz aplikacia pripravena na zatazenie? Ake objemy fotiek v 1 analyze su doporucene ako maximalne?
+
+--- USER MESSAGE 46 (ID: 228) ---
+Dopln informaciu o odporucanych objemoch fotiek do procesu NOVA ANALYZA pred uploadom fotiek. Nech ma uzivatel moznost sa rozhodnut aky objem fotiek v 1 analyze spusti
+
+--- USER MESSAGE 47 (ID: 233) ---
+dopln vsetky preklady aj pre CR, HU, HR
+
+--- USER MESSAGE 48 (ID: 237) ---
+dopln chybajuce preklady do jazykov HU,HR,CS
+
+--- USER MESSAGE 49 (ID: 241) ---
+preloz menu Naklady do HU, HR
+
+--- USER MESSAGE 50 (ID: 246) ---
+preloz uvodnu stranku do HU, HR, EN
+
+--- USER MESSAGE 51 (ID: 251) ---
+v menu OSP, SOS, Promo akcie sa zobrazuje moznost nahrat fotky, ma tam vsade byt uvodna stranka daneho menu
+
+--- USER MESSAGE 52 (ID: 256) ---
+este raz skontroluj a reviduj cely kod vratane zmien v prvych 5 kolach optimalizacie, urob polishing kvoli vacsej efektivite a hladkemu chodu. Identifikuj oblasti narocne na vykon, kde sa proces zadrhava a navrhni optimalizaciu ak po 5.kole je priestor na zlepsenie a znizenie narocnosti na pamat a dalsie atributy ovplyvnujuce vykon aplikacie.
+
+--- USER MESSAGE 53 (ID: 261) ---
+do Nova analyza dopln best practices na co najlepsi vysledok, aby uzivatel vedel ako ma postupovat, ake fotky v akej kvalite zadavat do analyzu apod
+
+
+--- USER MESSAGE 54 (ID: 266) ---
+este raz skontroluj a reviduj cely kod vratane zmien v prvych 6 kolach optimalizacie, urob polishing kvoli vacsej efektivite a hladkemu chodu. Identifikuj oblasti narocne na vykon, kde sa proces zadrhava a navrhni optimalizaciu ak po 6.kole je priestor na zlepsenie a znizenie narocnosti na pamat a dalsie atributy ovplyvnujuce vykon aplikacie.
+
+--- USER MESSAGE 55 (ID: 274) ---
+este raz skontroluj a reviduj cely kod vratane zmien v prvych 7 kolach optimalizacie, urob polishing kvoli vacsej efektivite a hladkemu chodu. Identifikuj oblasti narocne na vykon, kde sa proces zadrhava a navrhni optimalizaciu ak po 7.kole je priestor na zlepsenie a znizenie narocnosti na pamat a dalsie atributy ovplyvnujuce vykon aplikacie.
+
+--- USER MESSAGE 56 (ID: 278) ---
+si profesionalny Dev Architect, pozri sa na logiku kodu a sposob organizacie. Identifikuj oblasti nachylne na chybu, ktore nezodpovedaju modernemu programovaniu
+
+--- USER MESSAGE 57 (ID: 284) ---
+este raz skontroluj a reviduj cely kod vratane zmien v prvych 8 kolach optimalizacie, urob polishing kvoli vacsej efektivite a hladkemu chodu. Identifikuj oblasti narocne na vykon, kde sa proces zadrhava a navrhni optimalizaciu ak po 8.kole je priestor na zlepsenie a znizenie narocnosti na pamat a dalsie atributy ovplyvnujuce vykon aplikacie.
+
+--- USER MESSAGE 58 (ID: 293) ---
+proces Nova Analyza, po nahrati fotiek a kliknuti na zacat analyzu nevidim progres bar analyzy, nic sa nedeje
+
+--- USER MESSAGE 59 (ID: 302) ---
+Refaktoruj proces Nova AnalyzA.  Fotky sa analyzuju po 1, predtym to bolo po 3. Navrhni optimalny proces ktory bude efektivny a spolahlivy a zabezpeci maximalny vysledok. Pri 2. a dalsich fotkach nie je ziaden vysledok pri cene, identifikoval sa len nazov produktu, ale nie cena OSP reporte
+
+--- USER MESSAGE 60 (ID: 305) ---
+Refaktoruj proces Nova AnalyzA. Fotky sa analyzuju po 1, predtym to bolo po 3. Navrhni optimalny proces ktory bude efektivny a spolahlivy a zabezpeci maximalny vysledok. Pri 2. a dalsich fotkach nie je ziaden vysledok pri cene, identifikoval sa len nazov produktu, ale nie cena OSP reporte. Nedochadza k roztriedenie na nasa a konkurecne produkty
+
+--- USER MESSAGE 61 (ID: 310) ---
+Fix the following errors:
+
+```
+Uncaught TypeError: Cannot read properties of undefined (reading '3X')
+```
+
+--- USER MESSAGE 62 (ID: 315) ---
+Fix the following errors:
+
+```
+Uncaught TypeError: Cannot read properties of undefined (reading 'Ariel')
+```
+
+--- USER MESSAGE 63 (ID: 326) ---
+v menu naklady zobraz naklady jednotlivych analyz podla input a output tokenov
+
+--- USER MESSAGE 64 (ID: 334) ---
+Fix the following errors:
+
+```
+Uncaught TypeError: Failed to resolve module specifier "@/components/PosMaterialPanel". Relative references must start with either "/", "./", or "../".
+```
+
+--- USER MESSAGE 65 (ID: 340) ---
+CRITICAL TECHNICAL RESTRICTIONS (DO NOT BREAK):
+NO PATH ALIASES: This project runs in an environment that does not support path aliases. NEVER use imports starting with @/ (e.g. import from "@/components").
+ONLY RELATIVE PATHS: Always use explicit relative paths (e.g. ../../utils/helpers, ./types).
+NO SRC FOLDER: The project does not have a src/ folder. All folders (components, services, hooks, utils) are directly in the root directory.
+LOCAL-FIRST: All data is stored in IndexedDB (via Dexie.js). Do not assume the existence of a backend API for data storage.
+TECH STACK: React 19, TypeScript, Tailwind CSS, Google Gemini AI SDK.
+If you are going to generate code, before each import block, check that you are not using @ and that the path is correctly relative to the file you are editing."
+Do a quick visual check (so-called "Sanity Check") before you put the code into the application:
+Look at the first lines (Imports):
+Do you see @ there? -> 🚩 ERROR. Send it back to him for correction.
+Do you see src/? there -> 🚩 ERROR.
+Look at the data handling:
+Does it use fetch('/api/save')? -> 🚩 ERROR. It should use db.analyses.add(...) (Dexie).
+Check dependencies:
+Does it import something new that you are not familiar with (e.g. lodash, moment)? -> Ask if it is necessary. Most of the time, this can be done natively in JavaScript (e.g. via the Date object or helpers.ts).

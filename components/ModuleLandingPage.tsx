@@ -1,0 +1,48 @@
+import React from 'react';
+import { useTranslation } from '../i18n/index.tsx';
+import { RocketLaunchIcon, HistoryIcon } from './Icons.tsx';
+
+interface ModuleLandingPageProps {
+    type: string;
+    onStart: () => void;
+    onLoad: () => void;
+}
+
+export const ModuleLandingPage: React.FC<ModuleLandingPageProps> = ({ type, onStart, onLoad }) => {
+    const { t } = useTranslation();
+    
+    const getTitle = () => {
+        if (type === 'priceMonitoring') return t('priceMonitoring');
+        if (type === 'shelfShare') return t('shelfShare');
+        if (type === 'promoAlert') return t('promoAlert');
+        return t('newAnalysis');
+    };
+
+    return (
+        <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+            <div className="bg-lime-100 p-6 rounded-full mb-8">
+                <RocketLaunchIcon className="w-12 h-12 text-lime-600" />
+            </div>
+            <h2 className="text-3xl font-black text-gray-900 mb-4">{getTitle()}</h2>
+            <p className="text-gray-500 max-w-lg mb-10 leading-relaxed font-medium">
+                Nemáte načítanú žiadnu aktívnu analýzu. Môžete spustiť novú návštevu predajne alebo načítať starší záznam z archívu pre porovnanie.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+                <button 
+                    onClick={onStart}
+                    className="px-8 py-4 bg-lime-600 text-white font-black rounded-2xl hover:bg-lime-500 shadow-xl shadow-lime-100 transition-all active:scale-95 uppercase tracking-widest text-sm flex items-center gap-3"
+                >
+                    <RocketLaunchIcon className="w-5 h-5" />
+                    {t('startNewAnalysis')}
+                </button>
+                <button 
+                    onClick={onLoad}
+                    className="px-8 py-4 bg-white text-gray-700 font-black rounded-2xl hover:bg-gray-50 border border-gray-200 transition-all active:scale-95 uppercase tracking-widest text-sm flex items-center gap-3"
+                >
+                    <HistoryIcon className="w-5 h-5" />
+                    {t('openFromArchive')}
+                </button>
+            </div>
+        </div>
+    );
+};
