@@ -119,7 +119,7 @@ export const CostPanel: React.FC = () => {
         if (!modelId) return 'Gemini 3.6 Flash';
         
         const mapping: Record<string, string> = {
-            'gemini-3.6-flash': 'Gemini 3.6 Flash',
+            'gemini-3.8-flash': 'Gemini 3.6 Flash',
             'gemini-3.6-pro': 'Gemini 3.6 Pro',
             'gemini-3.7-flash': 'Gemini 3.7 Flash',
             'gemini-3.5-flash': 'Gemini 3.5 Flash',
@@ -167,8 +167,8 @@ export const CostPanel: React.FC = () => {
                     analysisInput += inTokens;
                     analysisOutput += outTokens;
 
-                    const model = img.analysisResult.modelName || 'gemini-3.6-flash';
-                    const pricing = MODEL_PRICING_TABLE[model] || MODEL_PRICING_TABLE['gemini-3.6-flash'];
+                    const model = img.analysisResult.modelName || 'gemini-3.8-flash';
+                    const pricing = MODEL_PRICING_TABLE[model] || MODEL_PRICING_TABLE['gemini-3.8-flash'];
                     standardCost += (inTokens / 1000000) * pricing.input;
                     standardCost += (outTokens / 1000000) * pricing.output;
 
@@ -188,8 +188,8 @@ export const CostPanel: React.FC = () => {
             }
 
             if (inputCost === 0 && outputCost === 0 && (analysisInput > 0 || analysisOutput > 0)) {
-                const model = analysis.costInfo?.modelName || 'gemini-3.6-flash';
-                const pricing = MODEL_PRICING_TABLE[model] || MODEL_PRICING_TABLE['gemini-3.6-flash'];
+                const model = analysis.costInfo?.modelName || 'gemini-3.8-flash';
+                const pricing = MODEL_PRICING_TABLE[model] || MODEL_PRICING_TABLE['gemini-3.8-flash'];
                 const inRate = inputRate !== undefined ? inputRate : pricing.input;
                 const outRate = outputRate !== undefined ? outputRate : pricing.output;
                 inputCost = (analysisInput / 1000000) * inRate;
@@ -255,47 +255,47 @@ export const CostPanel: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
                 {/* Custom Token & Billing Configuration */}
-                <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-3xs border border-slate-150 flex flex-col justify-between">
+                <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-8 rounded-[2rem] shadow-3xs border border-slate-150 dark:border-zinc-800 flex flex-col justify-between">
                     <div>
-                        <h2 className="text-xl font-black text-slate-900 flex items-center gap-3 mb-4 tracking-tight">
+                        <h2 className="text-xl font-black text-slate-900 dark:text-zinc-100 flex items-center gap-3 mb-4 tracking-tight">
                             <div className="p-2.5 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-sm border border-blue-100">
                                 <CalculatorIcon className="w-6 h-6 text-blue-600" />
                             </div>
                             {t('analysisCosts')}
                         </h2>
                         
-                        <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-6">
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 font-semibold leading-relaxed mb-6">
                             {t('costsDescription')}
                         </p>
                         
                         <div className="space-y-6">
                             {/* Billing rules configuration block */}
                             <div>
-                                <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider mb-3 flex items-center gap-2">
+                                <h3 className="text-xs font-black uppercase text-slate-700 dark:text-zinc-300 tracking-wider mb-3 flex items-center gap-2">
                                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                                     {t('billingSettings')}
                                 </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/50 dark:bg-zinc-900/60 p-4 rounded-2xl border border-slate-100 dark:border-zinc-800">
                                     <div>
-                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                        <label className="block text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5">
                                             {t('defaultProjectPrice')} ($)
                                         </label>
                                         <input 
                                             type="number" 
                                             step="0.10"
-                                            className="block w-full rounded-xl border-slate-200 bg-white text-slate-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs p-3 font-bold transition-all"
+                                            className="block w-full rounded-xl border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs p-3 font-bold transition-all"
                                             value={defaultAnalysisPrice}
                                             onChange={e => setDefaultAnalysisPrice(Math.max(0, parseFloat(e.target.value) || 0))}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                        <label className="block text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-1.5">
                                             {t('defaultImagePrice')} ($)
                                         </label>
                                         <input 
                                             type="number" 
                                             step="0.10"
-                                            className="block w-full rounded-xl border-slate-200 bg-white text-slate-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs p-3 font-bold transition-all"
+                                            className="block w-full rounded-xl border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs p-3 font-bold transition-all"
                                             value={defaultImagePrice}
                                             onChange={e => setDefaultImagePrice(Math.max(0, parseFloat(e.target.value) || 0))}
                                         />
@@ -305,31 +305,31 @@ export const CostPanel: React.FC = () => {
 
                             {/* Token custom weights override */}
                             <div>
-                                <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider mb-3 flex items-center gap-2">
+                                <h3 className="text-xs font-black uppercase text-slate-700 dark:text-zinc-300 tracking-wider mb-3 flex items-center gap-2">
                                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                                     {t('manualTokenRates')}
                                 </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100 animate-fade-in">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/50 dark:bg-zinc-900/60 p-4 rounded-2xl border border-slate-100 dark:border-zinc-800 animate-fade-in">
                                     <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                        <label className="block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5">
                                             {t('inputTokenRate')} ($ / 1M)
                                         </label>
                                         <input 
                                             type="number" 
                                             step="0.001"
-                                            className="block w-full rounded-xl border-slate-200 bg-white text-slate-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs p-3 font-bold transition-all"
+                                            className="block w-full rounded-xl border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs p-3 font-bold transition-all"
                                             value={inputRate}
                                             onChange={e => setInputRate(parseFloat(e.target.value) || 0)}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                                        <label className="block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5">
                                             {t('outputTokenRate')} ($ / 1M)
                                         </label>
                                         <input 
                                             type="number" 
                                             step="0.001"
-                                            className="block w-full rounded-xl border-slate-200 bg-white text-slate-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs p-3 font-bold transition-all"
+                                            className="block w-full rounded-xl border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-xs p-3 font-bold transition-all"
                                             value={outputRate}
                                             onChange={e => setOutputRate(parseFloat(e.target.value) || 0)}
                                         />
@@ -339,7 +339,7 @@ export const CostPanel: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-3 mt-8 pt-6 border-t border-slate-100">
+                    <div className="flex flex-wrap gap-3 mt-8 pt-6 border-t border-slate-100 dark:border-zinc-800">
                         <button 
                             onClick={handleSaveAndRecalculate}
                             disabled={isUpdating}
@@ -351,7 +351,7 @@ export const CostPanel: React.FC = () => {
                         <button 
                             onClick={handleResetToStandard}
                             disabled={isUpdating}
-                            className="flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-100 text-slate-600 rounded-2xl hover:bg-slate-200 font-black uppercase tracking-widest text-xs transition-all hover:text-slate-900 active:scale-95 disabled:opacity-50"
+                            className="flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-2xl hover:bg-slate-200 font-black uppercase tracking-widest text-xs transition-all hover:text-slate-900 active:scale-95 disabled:opacity-50"
                         >
                             <ArrowPathIcon className="w-5 h-5" />
                             {t('reset')}
@@ -360,12 +360,12 @@ export const CostPanel: React.FC = () => {
                 </div>
 
                 {/* AI Model Pricing Panel */}
-                <div className="bg-white p-8 rounded-[2rem] shadow-3xs border border-slate-150">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2.5">
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2rem] shadow-3xs border border-slate-150 dark:border-zinc-800">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100 uppercase tracking-widest mb-4 flex items-center gap-2.5">
                         <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse shadow-sm"></span>
                         {t('geminiPricingTitle')}
                     </h3>
-                    <p className="text-[11px] text-slate-500 font-semibold mb-6 leading-relaxed">
+                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-semibold mb-6 leading-relaxed">
                         {t('geminiPricingDesc')}
                     </p>
                     
@@ -377,19 +377,19 @@ export const CostPanel: React.FC = () => {
                             { name: 'Gemini 2.5 / 3.1 Flash-Lite', tag: t('tagEfficientAudit') || 'Ultra Low-Cost', input: 0.10, output: 0.40, batchInput: 0.05, batchOutput: 0.20, tagBg: 'bg-amber-50 text-amber-700 border-amber-200' },
                             { name: 'Gemini 2.5 Pro (≤200k)', tag: 'Pro Analytika', input: 1.25, output: 10.00, batchInput: 0.625, batchOutput: 5.00, tagBg: 'bg-purple-50 text-purple-700 border-purple-200' },
                         ].map((model) => (
-                            <div key={model.name} className="flex flex-col p-3.5 bg-slate-50/50 hover:bg-slate-50 rounded-2xl border border-slate-150/70 transition-all select-none">
+                            <div key={model.name} className="flex flex-col p-3.5 bg-slate-50/50 dark:bg-zinc-900/60 hover:bg-slate-50 dark:hover:bg-zinc-800/60 rounded-2xl border border-slate-150/70 transition-all select-none">
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-xs font-black text-slate-900">{model.name}</span>
+                                    <span className="text-xs font-black text-slate-900 dark:text-zinc-100">{model.name}</span>
                                     <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${model.tagBg}`}>
                                         {model.tag}
                                     </span>
                                 </div>
-                                <div className="space-y-1 text-[10px] font-bold text-slate-500">
+                                <div className="space-y-1 text-[10px] font-bold text-slate-500 dark:text-zinc-400">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-slate-600 font-extrabold">Standard:</span>
+                                        <span className="text-slate-600 dark:text-zinc-400 font-extrabold">Standard:</span>
                                         <span>{t('input')}: <strong className="text-blue-600">${model.input.toFixed(2)}</strong> | {t('output')}: <strong className="text-indigo-600">${model.output.toFixed(2)}</strong></span>
                                     </div>
-                                    <div className="flex justify-between items-center text-[9px] text-slate-400">
+                                    <div className="flex justify-between items-center text-[9px] text-slate-400 dark:text-zinc-500">
                                         <span className="font-extrabold">Batch (50% Off):</span>
                                         <span>In: <strong>${model.batchInput.toFixed(3)}</strong> | Out: <strong>${model.batchOutput.toFixed(2)}</strong></span>
                                     </div>
@@ -397,7 +397,7 @@ export const CostPanel: React.FC = () => {
                             </div>
                         ))}
                     </div>
-                    <p className="text-[9px] text-slate-400 font-medium mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <p className="text-[9px] text-slate-400 dark:text-zinc-500 font-medium mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
                         <span>* Sadzby za 1M tokenov podľa Google AI API (ai.google.dev/pricing)</span>
                         <span className="text-emerald-600 font-bold">Batch API: -50%</span>
                     </p>
@@ -406,20 +406,20 @@ export const CostPanel: React.FC = () => {
 
             {/* Total KPI statistics */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white p-7 rounded-[2rem] shadow-3xs border border-slate-150 text-center hover:shadow-xs transition-all flex flex-col justify-center">
-                    <p className="text-3xl font-black text-slate-900 mb-1">{analyses.length}</p>
-                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{t('projectsToday')}</p>
-                    <p className="text-[10px] text-slate-500 font-bold mt-1">({calculatedTotals.images} {getImagesUnit(calculatedTotals.images)})</p>
+                <div className="bg-white dark:bg-zinc-900 p-7 rounded-[2rem] shadow-3xs border border-slate-150 dark:border-zinc-800 text-center hover:shadow-xs transition-all flex flex-col justify-center">
+                    <p className="text-3xl font-black text-slate-900 dark:text-zinc-100 mb-1">{analyses.length}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase font-black tracking-widest">{t('projectsToday')}</p>
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold mt-1">({calculatedTotals.images} {getImagesUnit(calculatedTotals.images)})</p>
                 </div>
-                <div className="bg-white p-7 rounded-[2rem] shadow-3xs border border-slate-150 text-center hover:shadow-xs transition-all flex flex-col justify-center">
+                <div className="bg-white dark:bg-zinc-900 p-7 rounded-[2rem] shadow-3xs border border-slate-150 dark:border-zinc-800 text-center hover:shadow-xs transition-all flex flex-col justify-center">
                     <p className="text-2xl font-black text-blue-600 mb-1">{formatTokens(calculatedTotals.input + calculatedTotals.output)}</p>
-                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{t('aiTokenConsumption')}</p>
-                    <p className="text-[9px] text-slate-500 font-bold mt-1">{t('input')}: {formatTokens(calculatedTotals.input)} | {t('output')}: {formatTokens(calculatedTotals.output)}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase font-black tracking-widest">{t('aiTokenConsumption')}</p>
+                    <p className="text-[9px] text-slate-500 dark:text-zinc-400 font-bold mt-1">{t('input')}: {formatTokens(calculatedTotals.input)} | {t('output')}: {formatTokens(calculatedTotals.output)}</p>
                 </div>
-                <div className="bg-white p-7 rounded-[2rem] shadow-3xs border border-slate-150 text-center hover:shadow-xs transition-all flex flex-col justify-center">
+                <div className="bg-white dark:bg-zinc-900 p-7 rounded-[2rem] shadow-3xs border border-slate-150 dark:border-zinc-800 text-center hover:shadow-xs transition-all flex flex-col justify-center">
                     <p className="text-2xl font-black text-slate-650 mb-1">${calculatedTotals.standardCost.toFixed(4)}</p>
-                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{t('totalGeminiCost')}</p>
-                    <p className="text-[9px] text-slate-500 mt-1">{t('byStandardPricing')}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase font-black tracking-widest">{t('totalGeminiCost')}</p>
+                    <p className="text-[9px] text-slate-500 dark:text-zinc-400 mt-1">{t('byStandardPricing')}</p>
                 </div>
                 
                 {/* Zvýraznená položka: Fakturovaná hodnota celkom / celkem */}
@@ -439,32 +439,32 @@ export const CostPanel: React.FC = () => {
             </div>
 
             {/* Historical list section */}
-            <div className="bg-white rounded-[2rem] shadow-3xs border border-slate-150 overflow-hidden">
-                <div className="p-6 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                        <HistoryIcon className="w-4 h-4 text-slate-500" />
+            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-3xs border border-slate-150 dark:border-zinc-800 overflow-hidden">
+                <div className="p-6 bg-slate-50/50 dark:bg-zinc-900/60 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100 uppercase tracking-widest flex items-center gap-2">
+                        <HistoryIcon className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
                         {t('detailedCostBreakdown')}
                     </h3>
-                    <span className="text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl">
+                    <span className="text-xs font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 px-3 py-1 rounded-xl">
                         {t('totalQueries')}: {analyses.length}
                     </span>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-100">
+                    <table className="min-w-full divide-y divide-slate-100 dark:divide-zinc-800">
                         <thead className="bg-slate-50/75">
                             <tr>
-                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('date')}</th>
-                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('analysisName')}</th>
-                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('model')}</th>
-                                <th className="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('imagesAndConsumption')}</th>
-                                <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('standardGeminiCost')}</th>
-                                <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('salesContractual')}</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{t('date')}</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{t('analysisName')}</th>
+                                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{t('model')}</th>
+                                <th className="px-6 py-4 text-center text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{t('imagesAndConsumption')}</th>
+                                <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{t('standardGeminiCost')}</th>
+                                <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{t('salesContractual')}</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-slate-100">
+                        <tbody className="bg-white dark:bg-zinc-900 divide-y divide-slate-100 dark:divide-zinc-800">
                             {analyses.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-8 py-12 text-center text-sm font-bold text-slate-400">
+                                    <td colSpan={6} className="px-8 py-12 text-center text-sm font-bold text-slate-400 dark:text-zinc-500">
                                         {t('noAnalysisCosts')}
                                     </td>
                                 </tr>
@@ -486,8 +486,8 @@ export const CostPanel: React.FC = () => {
                                             analysisInput += inTokens;
                                             analysisOutput += outTokens;
 
-                                            const model = img.analysisResult.modelName || 'gemini-3.6-flash';
-                                            const pricing = MODEL_PRICING_TABLE[model] || MODEL_PRICING_TABLE['gemini-3.6-flash'];
+                                            const model = img.analysisResult.modelName || 'gemini-3.8-flash';
+                                            const pricing = MODEL_PRICING_TABLE[model] || MODEL_PRICING_TABLE['gemini-3.8-flash'];
                                             standardCost += (inTokens / 1000000) * pricing.input;
                                             standardCost += (outTokens / 1000000) * pricing.output;
 
@@ -507,8 +507,8 @@ export const CostPanel: React.FC = () => {
                                     }
 
                                     if (inputCost === 0 && outputCost === 0 && (analysisInput > 0 || analysisOutput > 0)) {
-                                        const model = analysis.costInfo?.modelName || 'gemini-3.6-flash';
-                                        const pricing = MODEL_PRICING_TABLE[model] || MODEL_PRICING_TABLE['gemini-3.6-flash'];
+                                        const model = analysis.costInfo?.modelName || 'gemini-3.8-flash';
+                                        const pricing = MODEL_PRICING_TABLE[model] || MODEL_PRICING_TABLE['gemini-3.8-flash'];
                                         const inRate = inputRate !== undefined ? inputRate : pricing.input;
                                         const outRate = outputRate !== undefined ? outputRate : pricing.output;
                                         inputCost = (analysisInput / 1000000) * inRate;
@@ -535,34 +535,34 @@ export const CostPanel: React.FC = () => {
                                     return (
                                         <tr key={analysis.id} className="hover:bg-slate-50/50 transition-colors group">
                                             {/* Date */}
-                                            <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500 font-semibold">
+                                            <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500 dark:text-zinc-400 font-semibold">
                                                 {new Date(analysis.createdAt).toLocaleDateString()}
                                             </td>
                                             
                                             {/* Name */}
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 dark:text-zinc-100 group-hover:text-blue-700 transition-colors">
                                                 {analysis.name}
                                             </td>
 
                                             {/* AI Model used */}
-                                            <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-slate-600">
-                                                <span className="inline-flex items-center gap-1.5 bg-slate-150/55 text-slate-700 px-2.5 py-1 rounded-xl border border-slate-200/50 font-bold">
+                                            <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-slate-600 dark:text-zinc-400">
+                                                <span className="inline-flex items-center gap-1.5 bg-slate-150/55 text-slate-700 dark:text-zinc-300 px-2.5 py-1 rounded-xl border border-slate-200/50 font-bold">
                                                     {getModelLabel(analysis.costInfo?.modelName)}
                                                 </span>
                                             </td>
 
                                             {/* Images & prompt token sum */}
-                                            <td className="px-6 py-4 whitespace-nowrap text-center text-xs text-slate-500 font-bold">
+                                            <td className="px-6 py-4 whitespace-nowrap text-center text-xs text-slate-500 dark:text-zinc-400 font-bold">
                                                 <div className="flex flex-col items-center">
                                                     <span>{imagesCount} {getImagesUnit(imagesCount)}</span>
-                                                    <span className="text-[10px] text-slate-400 font-medium">
+                                                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">
                                                         ({formatTokens(analysis.costInfo?.inputTokens || analysisInput)} {t('input').toLowerCase()} / {formatTokens(analysis.costInfo?.outputTokens || analysisOutput)} {t('output').toLowerCase()})
                                                     </span>
                                                 </div>
                                             </td>
 
                                             {/* Standard baseline cost */}
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold block-tabular text-slate-600">
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold block-tabular text-slate-600 dark:text-zinc-400">
                                                 ${standardCost.toFixed(4)}
                                             </td>
 
@@ -570,11 +570,11 @@ export const CostPanel: React.FC = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-right">
                                                 {editingId === analysis.id ? (
                                                     <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-                                                        <span className="text-xs text-slate-400 font-bold">$</span>
+                                                        <span className="text-xs text-slate-400 dark:text-zinc-500 font-bold">$</span>
                                                         <input 
                                                             type="number" 
                                                             step="0.01"
-                                                            className="w-20 rounded-lg border-slate-200 bg-slate-50 text-slate-900 focus:border-blue-500 focus:ring-blue-500 text-xs py-1 px-1.5 font-bold"
+                                                            className="w-20 rounded-lg border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-zinc-100 focus:border-blue-500 focus:ring-blue-500 text-xs py-1 px-1.5 font-bold"
                                                             value={editingVal}
                                                             placeholder={calculatedPrice.toFixed(2)}
                                                             onChange={e => setEditingVal(e.target.value)}
@@ -620,10 +620,10 @@ export const CostPanel: React.FC = () => {
                                                         </span>
                                                         <button 
                                                             onClick={() => startEditing(analysis.id, finalPrice)}
-                                                            className="opacity-0 group-hover:opacity-100 group-hover/cell:opacity-100 p-1 hover:bg-slate-100 rounded-lg transition-opacity"
+                                                            className="opacity-0 group-hover:opacity-100 group-hover/cell:opacity-100 p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-opacity"
                                                             title={t('editManualPrice') || 'Upraviť manuálnu cenu'}
                                                         >
-                                                            <EditIcon className="w-3.5 h-3.5 text-slate-400 hover:text-blue-500" />
+                                                            <EditIcon className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 hover:text-blue-500" />
                                                         </button>
                                                     </div>
                                                 )}

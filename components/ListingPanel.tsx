@@ -159,15 +159,15 @@ export const ListingPanel: React.FC = () => {
     return (
         <div className="max-w-7xl mx-auto flex flex-col h-full animate-fade-in pb-10">
             {/* Page Header */}
-            <div className="flex justify-between items-end mb-8 bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100">
+            <div className="flex justify-between items-end mb-8 bg-white dark:bg-zinc-900 p-8 rounded-[2rem] shadow-sm border border-gray-100 dark:border-zinc-800">
                 <div>
-                    <h2 className="text-3xl font-black text-gray-900 flex items-center gap-4">
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-zinc-100 flex items-center gap-4">
                         <div className="p-3 bg-gradient-to-br from-lime-100 to-emerald-100 rounded-2xl shadow-sm">
                             <ClipboardDocumentListIcon className="w-8 h-8 text-lime-600" />
                         </div>
                         {t('listing')}
                     </h2>
-                    <p className="text-gray-500 text-base mt-2 font-medium">Správa kmeňových dát a vizuálny tréning AI modelov.</p>
+                    <p className="text-gray-500 dark:text-zinc-400 text-base mt-2 font-medium">Správa kmeňových dát a vizuálny tréning AI modelov.</p>
                 </div>
                 {!isEditing && (
                     <button onClick={() => setIsEditing(true)} className="bg-lime-600 text-white px-8 py-4 rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-lime-700 transition-all flex items-center gap-3 shadow-xl shadow-lime-200 active:scale-95">
@@ -183,18 +183,18 @@ export const ListingPanel: React.FC = () => {
                         <input 
                             type="text"
                             placeholder="Vyhľadať v listingu..."
-                            className="w-full bg-white border-none rounded-[2rem] py-4 pl-14 pr-6 shadow-sm text-sm font-bold focus:ring-2 focus:ring-lime-500 transition-shadow"
+                            className="w-full bg-white dark:bg-zinc-900 border-none rounded-[2rem] py-4 pl-14 pr-6 shadow-sm text-sm font-bold focus:ring-2 focus:ring-lime-500 transition-shadow"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500">
                             <ArrowPathIcon className="w-5 h-5" />
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex-grow flex flex-col">
-                        <div className="p-5 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
-                            <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Zoznam SKU (Total: {entries.length})</span>
+                    <div className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden flex-grow flex flex-col">
+                        <div className="p-5 bg-gray-50/50 dark:bg-zinc-900/60 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center">
+                            <span className="text-[11px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Zoznam SKU (Total: {entries.length})</span>
                         </div>
                         
                         <div className="overflow-y-auto flex-grow custom-scrollbar">
@@ -202,10 +202,10 @@ export const ListingPanel: React.FC = () => {
                                 <div className="flex justify-center p-20"><SpinnerIcon className="w-12 h-12 text-lime-500 animate-spin" /></div>
                             ) : filteredEntries.length === 0 ? (
                                 <div className="p-20 text-center flex flex-col items-center gap-5">
-                                    <div className="p-6 bg-gray-50 rounded-full">
+                                    <div className="p-6 bg-gray-50 dark:bg-zinc-800/60 rounded-full">
                                         <TagIcon className="w-14 h-14 text-gray-300" />
                                     </div>
-                                    <p className="text-gray-400 font-bold uppercase tracking-widest text-sm">{t('noProductsInListing')}</p>
+                                    <p className="text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-widest text-sm">{t('noProductsInListing')}</p>
                                 </div>
                             ) : (
                                 <div className="divide-y divide-gray-50">
@@ -217,7 +217,7 @@ export const ListingPanel: React.FC = () => {
                                         >
                                             <div className="min-w-0 flex-grow">
                                                 <div className="flex items-center gap-3 mb-1">
-                                                    <p className="font-bold text-gray-900 truncate text-base group-hover:text-lime-700 transition-colors">{entry.canonicalName}</p>
+                                                    <p className="font-bold text-gray-900 dark:text-zinc-100 truncate text-base group-hover:text-lime-700 transition-colors">{entry.canonicalName}</p>
                                                     {entry.visualFeatures && (
                                                         <div className="bg-gradient-to-br from-lime-400 to-emerald-500 rounded-full p-1 shadow-sm" title="AI Trained">
                                                             <ShieldCheckIcon className="w-3.5 h-3.5 text-white" />
@@ -225,12 +225,12 @@ export const ListingPanel: React.FC = () => {
                                                     )}
                                                 </div>
                                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-2">
-                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{entry.manufacturer || 'Neznámy výrobca'}</span>
+                                                    <span className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">{entry.manufacturer || 'Neznámy výrobca'}</span>
                                                     {entry.sku && (
                                                         <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-lg leading-none uppercase border border-blue-100">SKU: {entry.sku}</span>
                                                     )}
                                                     {entry.category && (
-                                                        <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg leading-none uppercase border border-gray-200">{entry.category}</span>
+                                                        <span className="text-[10px] font-bold text-gray-600 dark:text-zinc-400 bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-lg leading-none uppercase border border-gray-200 dark:border-zinc-800">{entry.category}</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -252,25 +252,25 @@ export const ListingPanel: React.FC = () => {
                 <div className={`w-full lg:w-3/5 ${!isEditing ? 'hidden lg:flex items-center justify-center bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-200' : 'flex flex-col'}`}>
                     {!isEditing ? (
                         <div className="text-center p-10 flex flex-col items-center gap-5">
-                            <div className="bg-white p-8 rounded-full shadow-sm">
+                            <div className="bg-white dark:bg-zinc-900 p-8 rounded-full shadow-sm">
                                 <PlusIcon className="w-16 h-16 text-gray-300" />
                             </div>
                             <div>
-                                <p className="text-gray-500 font-black text-xl tracking-tight">{t('selectProductToEdit')}</p>
-                                <p className="text-gray-400 text-sm mt-2 font-medium">Kliknite na produkt vľavo pre úpravu alebo vytvorte nový.</p>
+                                <p className="text-gray-500 dark:text-zinc-400 font-black text-xl tracking-tight">{t('selectProductToEdit')}</p>
+                                <p className="text-gray-400 dark:text-zinc-500 text-sm mt-2 font-medium">Kliknite na produkt vľavo pre úpravu alebo vytvorte nový.</p>
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 flex flex-col h-full overflow-hidden">
+                        <div className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-zinc-800 flex flex-col h-full overflow-hidden">
                             {/* Editor Header */}
-                            <div className="p-8 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                            <div className="p-8 bg-gray-50 dark:bg-zinc-800/60 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center">
                                 <div>
-                                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                                    <h3 className="text-xl font-black text-gray-900 dark:text-zinc-100 uppercase tracking-tight">
                                         {currentId ? 'Úprava produktu' : 'Nový produkt'}
                                     </h3>
-                                    {currentId && <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest mt-1 block">ID: #{currentId}</span>}
+                                    {currentId && <span className="text-[11px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest mt-1 block">ID: #{currentId}</span>}
                                 </div>
-                                <button onClick={resetForm} className="p-3 hover:bg-gray-200 rounded-2xl text-gray-400 transition-colors">
+                                <button onClick={resetForm} className="p-3 hover:bg-gray-200 rounded-2xl text-gray-400 dark:text-zinc-500 transition-colors">
                                     <CloseIcon className="w-6 h-6" />
                                 </button>
                             </div>
@@ -280,44 +280,44 @@ export const ListingPanel: React.FC = () => {
                                 <div className="space-y-5">
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className="h-5 w-1.5 bg-lime-500 rounded-full"></div>
-                                        <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest">Základné údaje</h4>
+                                        <h4 className="text-sm font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Základné údaje</h4>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest ml-2">{t('productName')} *</label>
+                                            <label className="text-[11px] font-black text-gray-500 dark:text-zinc-400 uppercase tracking-widest ml-2">{t('productName')} *</label>
                                             <input 
                                                 type="text" 
-                                                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold shadow-inner focus:ring-2 focus:ring-lime-500 transition-shadow" 
+                                                className="w-full bg-gray-50 dark:bg-zinc-800/60 border-none rounded-2xl p-4 text-sm font-bold shadow-inner focus:ring-2 focus:ring-lime-500 transition-shadow" 
                                                 value={formData.productName}
                                                 onChange={e => setFormData({...formData, productName: e.target.value})}
                                                 placeholder="napr. Kofola Original 2L"
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest ml-2">{t('manufacturer')}</label>
+                                            <label className="text-[11px] font-black text-gray-500 dark:text-zinc-400 uppercase tracking-widest ml-2">{t('manufacturer')}</label>
                                             <input 
                                                 type="text" 
-                                                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold shadow-inner focus:ring-2 focus:ring-lime-500 transition-shadow" 
+                                                className="w-full bg-gray-50 dark:bg-zinc-800/60 border-none rounded-2xl p-4 text-sm font-bold shadow-inner focus:ring-2 focus:ring-lime-500 transition-shadow" 
                                                 value={formData.manufacturer}
                                                 onChange={e => setFormData({...formData, manufacturer: e.target.value})}
                                                 placeholder="napr. Kofola a.s."
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest ml-2">{t('skuCode')}</label>
+                                            <label className="text-[11px] font-black text-gray-500 dark:text-zinc-400 uppercase tracking-widest ml-2">{t('skuCode')}</label>
                                             <input 
                                                 type="text" 
-                                                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold shadow-inner focus:ring-2 focus:ring-lime-500 transition-shadow" 
+                                                className="w-full bg-gray-50 dark:bg-zinc-800/60 border-none rounded-2xl p-4 text-sm font-bold shadow-inner focus:ring-2 focus:ring-lime-500 transition-shadow" 
                                                 value={formData.sku}
                                                 onChange={e => setFormData({...formData, sku: e.target.value})}
                                                 placeholder="napr. 858400123456"
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest ml-2">{t('category')}</label>
+                                            <label className="text-[11px] font-black text-gray-500 dark:text-zinc-400 uppercase tracking-widest ml-2">{t('category')}</label>
                                             <input 
                                                 type="text" 
-                                                className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold shadow-inner focus:ring-2 focus:ring-lime-500 transition-shadow" 
+                                                className="w-full bg-gray-50 dark:bg-zinc-800/60 border-none rounded-2xl p-4 text-sm font-bold shadow-inner focus:ring-2 focus:ring-lime-500 transition-shadow" 
                                                 value={formData.category}
                                                 onChange={e => setFormData({...formData, category: e.target.value})}
                                                 placeholder="napr. Sýtené nápoje"
@@ -330,12 +330,12 @@ export const ListingPanel: React.FC = () => {
                                 <div className="space-y-5">
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className="h-5 w-1.5 bg-lime-500 rounded-full"></div>
-                                        <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest">{t('aliases')}</h4>
+                                        <h4 className="text-sm font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">{t('aliases')}</h4>
                                     </div>
                                     <div className="flex gap-3">
                                         <input 
                                             type="text" 
-                                            className="flex-grow bg-gray-50 border-none rounded-2xl p-4 text-sm font-bold shadow-inner focus:ring-2 focus:ring-lime-500 transition-shadow" 
+                                            className="flex-grow bg-gray-50 dark:bg-zinc-800/60 border-none rounded-2xl p-4 text-sm font-bold shadow-inner focus:ring-2 focus:ring-lime-500 transition-shadow" 
                                             value={currentAliasInput}
                                             onChange={e => setCurrentAliasInput(e.target.value)}
                                             onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddAlias())}
@@ -343,7 +343,7 @@ export const ListingPanel: React.FC = () => {
                                         />
                                         <button 
                                             onClick={handleAddAlias}
-                                            className="px-6 bg-gray-100 text-gray-600 rounded-2xl hover:bg-gray-200 transition-all active:scale-95 shadow-sm"
+                                            className="px-6 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 rounded-2xl hover:bg-gray-200 transition-all active:scale-95 shadow-sm"
                                         >
                                             <PlusIcon className="w-6 h-6" />
                                         </button>
@@ -364,7 +364,7 @@ export const ListingPanel: React.FC = () => {
                                 <div className="space-y-5">
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className="h-5 w-1.5 bg-purple-500 rounded-full"></div>
-                                        <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest">{t('visualReferences')}</h4>
+                                        <h4 className="text-sm font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">{t('visualReferences')}</h4>
                                     </div>
                                     <div className="bg-gradient-to-br from-purple-50/80 to-fuchsia-50/80 p-8 rounded-[2rem] border border-purple-100/50 shadow-inner">
                                         <p className="text-sm text-purple-700 mb-6 font-medium leading-relaxed">{t('visualReferencesHint')}</p>
@@ -404,7 +404,7 @@ export const ListingPanel: React.FC = () => {
                                                     </div>
                                                     <span className="text-xs font-black text-purple-700 uppercase tracking-widest">AI Fingerprint</span>
                                                 </div>
-                                                <p className="text-sm text-gray-600 italic leading-relaxed">"{entries.find(e => e.id === currentId)?.visualFeatures}"</p>
+                                                <p className="text-sm text-gray-600 dark:text-zinc-400 italic leading-relaxed">"{entries.find(e => e.id === currentId)?.visualFeatures}"</p>
                                             </div>
                                         )}
                                     </div>
@@ -412,8 +412,8 @@ export const ListingPanel: React.FC = () => {
                             </div>
 
                             {/* Footer Actions */}
-                            <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-4">
-                                <button onClick={resetForm} className="px-8 py-4 text-gray-500 font-bold uppercase tracking-widest text-xs hover:text-gray-900 transition-colors hover:bg-gray-200 rounded-2xl">
+                            <div className="p-6 bg-gray-50 dark:bg-zinc-800/60 border-t border-gray-100 dark:border-zinc-800 flex justify-end gap-4">
+                                <button onClick={resetForm} className="px-8 py-4 text-gray-500 dark:text-zinc-400 font-bold uppercase tracking-widest text-xs hover:text-gray-900 transition-colors hover:bg-gray-200 rounded-2xl">
                                     {t('cancelButton')}
                                 </button>
                                 <button 

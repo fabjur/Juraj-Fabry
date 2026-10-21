@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+
+const EMPTY_ARRAY: any[] = [];
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from '../i18n';
 import type { Store } from '../types';
@@ -19,7 +21,7 @@ import {
   ChevronUp, 
   Navigation,
   CheckCircle2, 
-  X,
+  X, 
   Sparkles,
   List,
   LayoutGrid
@@ -27,7 +29,7 @@ import {
 import { getStores, addStore, updateStore, deleteStore as deleteStoreFromDb, getAnalyses } from '../db';
 
 export const StoresPanel: React.FC = () => {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const [isEditing, setIsEditing] = useState(false);
     
     // Comprehensive default store object reflecting custom data extensions for retail audit completeness
@@ -47,7 +49,7 @@ export const StoresPanel: React.FC = () => {
     const [editingStore, setEditingStore] = useState<Store>(defaultStore);
 
     // View mode: 'grid' or 'list' for compact 1-line representation
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
     // Filter, search & sorting states
     const [searchQuery, setSearchQuery] = useState('');
@@ -59,11 +61,26 @@ export const StoresPanel: React.FC = () => {
     const [expandedStores, setExpandedStores] = useState<Record<number, boolean>>({});
 
     // Dexie queries reactive to DB updates
-    const rawStores = useLiveQuery(() => getStores()) || [];
-    const analyses = useLiveQuery(() => getAnalyses()) || [];
+    const rawStores = useLiveQuery(() => getStores()) ?? EMPTY_ARRAY;
+    const analyses = useLiveQuery(() => getAnalyses()) ?? EMPTY_ARRAY;
 
     const toggleStoreExpand = (storeId: number) => {
         setExpandedStores(prev => ({ ...prev, [storeId]: !prev[storeId] }));
+    };
+
+    const formatDate = (dateStr: string) => {
+        const locale = language === 'sk' ? 'sk-SK' : language === 'cs' ? 'cs-CZ' : language === 'de' ? 'de-DE' : language === 'hu' ? 'hu-HU' : language === 'hr' ? 'hr-HR' : 'en-US';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString(locale);
+    };
+
+    const formatDateTime = (dateStr: string) => {
+        const locale = language === 'sk' ? 'sk-SK' : language === 'cs' ? 'cs-CZ' : language === 'de' ? 'de-DE' : language === 'hu' ? 'hu-HU' : language === 'hr' ? 'hr-HR' : 'en-US';
+        const d = new Date(dateStr);
+        const datePart = d.toLocaleDateString(locale);
+        const timePart = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+        const separator = t('atTime') || (language === 'en' ? 'at' : 'v');
+        return `${datePart} ${separator} ${timePart}`;
     };
 
     const handleSave = async () => {
@@ -99,7 +116,7 @@ export const StoresPanel: React.FC = () => {
     };
 
     // Calculate real-time, deep store stats by cross-referencing completed audits
-    const storesWithStats = rawStores.map(store => {
+    const storesWithStats = useMemo(() => rawStores.map(store => {
         // Find all analyses referencing this store in our local DB
         const storeAnalyses = analyses.filter(an => {
             if (an.storeId === store.id) return true;
@@ -162,10 +179,10 @@ export const StoresPanel: React.FC = () => {
             totalCost,
             latestAnalyses: sortedAnalyses.slice(0, 3) // last 3 visits
         };
-    });
+    }), [rawStores, analyses]);
 
     // Extract unique chains represented for filter UI
-    const availableChains = Array.from(new Set(rawStores.map(s => s.chain).filter(Boolean))) as string[];
+    const availableChains = useMemo(() => Array.from(new Set(rawStores.map(s => s.chain).filter(Boolean))) as string[], [rawStores]);
 
     // Available store format tiers
     const availableTiers = ['hyper', 'super', 'convenience', 'express'];
@@ -173,11 +190,11 @@ export const StoresPanel: React.FC = () => {
     // Tiers mapping label helper
     const getTierLabel = (tier?: string) => {
         switch (tier) {
-            case 'hyper': return 'Hypermarket';
-            case 'super': return 'Supermarket';
-            case 'convenience': return 'Convenience / Lokálne';
-            case 'express': return 'Express / Čerpadlo';
-            default: return 'Všeobecná predajňa';
+            case 'hyper': return t('tierHypermarket');
+            case 'super': return t('tierSupermarket');
+            case 'convenience': return t('tierConvenience');
+            case 'express': return t('tierExpress');
+            default: return t('tierGeneral');
         }
     };
 
@@ -192,7 +209,7 @@ export const StoresPanel: React.FC = () => {
     };
 
     // Filter and Sort
-    const filteredStores = storesWithStats.filter(store => {
+    const filteredStores = useMemo(() => storesWithStats.filter(store => {
         const matchesSearch = 
             store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (store.chain || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -204,9 +221,9 @@ export const StoresPanel: React.FC = () => {
         const matchesTier = !selectedTierFilter || store.storeTier === selectedTierFilter;
 
         return matchesSearch && matchesChain && matchesTier;
-    });
+    }), [storesWithStats, searchQuery, selectedChainFilter, selectedTierFilter]);
 
-    const sortedStores = [...filteredStores].sort((a, b) => {
+    const sortedStores = useMemo(() => [...filteredStores].sort((a, b) => {
         if (sortBy === 'name') {
             return a.name.localeCompare(b.name);
         } else if (sortBy === 'code') {
@@ -217,14 +234,14 @@ export const StoresPanel: React.FC = () => {
             return (b.avgCompliance || 0) - (a.avgCompliance || 0);
         }
         return 0;
-    });
+    }), [filteredStores, sortBy]);
 
     // Global dashboard metrics for bento summary
     const totalStoresCount = rawStores.length;
     const uniqueChainsCount = availableChains.length;
     const totalAuditsCount = analyses.length;
     
-    const complianceStoresList = storesWithStats.filter(s => s.avgCompliance !== null);
+    const complianceStoresList = useMemo(() => storesWithStats.filter(s => s.avgCompliance !== null), [storesWithStats]);
     const globalAvgCompliance = complianceStoresList.length > 0
         ? Math.round(complianceStoresList.reduce((acc, s) => acc + (s.avgCompliance || 0), 0) / complianceStoresList.length)
         : null;
@@ -234,17 +251,17 @@ export const StoresPanel: React.FC = () => {
     const citySuggestions = ['Bratislava', 'Košice', 'Žilina', 'Prešov', 'Nitra', 'Banská Bystrica', 'Trnava', 'Trenčín'];
 
     return (
-        <div className="bg-slate-50/50 p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-100/50 min-h-full flex flex-col font-sans">
+        <div className="bg-slate-50/50 dark:bg-zinc-950/50 p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-100/50 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 min-h-full flex flex-col font-sans">
             
             {/* Header Area */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div>
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
+                    <h2 className="text-3xl font-black text-slate-900 dark:text-zinc-100 tracking-tight flex items-center gap-2.5">
                         <Building2 className="w-8 h-8 text-emerald-600" />
-                        {t('stores') || 'Predajne'}
+                        {t('stores') || 'Stores'}
                     </h2>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        Sledujte lokácie, kľúčových klientov, ciele podielov regálov a zhromažďujte inteligentnú telemetriu z vykonaných analýz.
+                    <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium mt-1">
+                        {t('storesSubtitle')}
                     </p>
                 </div>
                 {!isEditing && (
@@ -253,7 +270,7 @@ export const StoresPanel: React.FC = () => {
                         className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all shadow-md shadow-emerald-200 flex items-center gap-2 active:scale-95"
                     >
                         <Plus className="w-4 h-4" />
-                        {t('addStore') || 'Pridať predajňu'}
+                        {t('addStore')}
                     </button>
                 )}
             </div>
@@ -261,19 +278,19 @@ export const StoresPanel: React.FC = () => {
             {/* Main view vs Edit screen */}
             {isEditing ? (
                 /* ADVANCED MINIMALIST FORM */
-                <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-100 flex-grow max-w-4xl mx-auto w-full">
-                    <div className="flex justify-between items-center pb-6 border-b border-slate-100 mb-6">
+                <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-100 dark:border-zinc-800 text-slate-900 dark:text-zinc-100 flex-grow max-w-4xl mx-auto w-full">
+                    <div className="flex justify-between items-center pb-6 border-b border-slate-100 dark:border-zinc-800 mb-6">
                         <div className="flex items-center gap-2">
                             <span className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
                                 <Building2 className="w-5 h-5" />
                             </span>
-                            <h3 className="font-black text-lg text-slate-900">
-                                {editingStore.id ? 'Úprava detailov predajne' : 'Nové auditné miesto'}
+                            <h3 className="font-black text-lg text-slate-900 dark:text-zinc-100">
+                                {editingStore.id ? t('editStoreDetails') : t('newAuditLocation')}
                             </h3>
                         </div>
                         <button 
                             onClick={() => setIsEditing(false)} 
-                            className="p-1.5 hover:bg-slate-50 rounded-xl transition-all text-slate-400 hover:text-slate-600"
+                            className="p-1.5 hover:bg-slate-50 dark:hover:bg-zinc-800/60 rounded-xl transition-all text-slate-400 dark:text-zinc-500 hover:text-slate-600"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -283,27 +300,27 @@ export const StoresPanel: React.FC = () => {
                         {/* Section: Basic info */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                             <div className="md:col-span-2">
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                                    Názov prevádzky *
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1.5">
+                                    {t('storeNameLabel')}
                                 </label>
                                 <input 
                                     type="text" 
-                                    placeholder="Napr. Tesco Hypermarket Petržalka"
+                                    placeholder={t('storeNamePlaceholder')}
                                     value={editingStore.name} 
                                     onChange={e => setEditingStore({...editingStore, name: e.target.value})} 
-                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors placeholder:text-slate-300" 
+                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 dark:bg-zinc-900/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors placeholder:text-slate-300" 
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                                    Interný kód prevádzky
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1.5">
+                                    {t('internalStoreCode')}
                                 </label>
                                 <input 
                                     type="text" 
-                                    placeholder="Napr. TS-BA-01"
+                                    placeholder={t('storeCodePlaceholder') || 'TS-BA-01'}
                                     value={editingStore.code || ''} 
                                     onChange={e => setEditingStore({...editingStore, code: e.target.value})} 
-                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors placeholder:text-slate-300" 
+                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 dark:bg-zinc-900/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors placeholder:text-slate-300" 
                                 />
                             </div>
                         </div>
@@ -311,15 +328,15 @@ export const StoresPanel: React.FC = () => {
                         {/* Suggestions row for Chain */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                                    Obchodný reťazec
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1.5">
+                                    {t('retailChain')}
                                 </label>
                                 <input 
                                     type="text" 
-                                    placeholder="Napr. Tesco, Lidl, Billa..."
+                                    placeholder={t('retailChainPlaceholder')}
                                     value={editingStore.chain || ''} 
                                     onChange={e => setEditingStore({...editingStore, chain: e.target.value})} 
-                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors placeholder:text-slate-300" 
+                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 dark:bg-zinc-900/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors placeholder:text-slate-300" 
                                 />
                                 <div className="mt-2 flex flex-wrap gap-1.5">
                                     {chainSuggestions.map(ch => (
@@ -327,7 +344,7 @@ export const StoresPanel: React.FC = () => {
                                             key={ch} 
                                             type="button" 
                                             onClick={() => setEditingStore({...editingStore, chain: ch})}
-                                            className="px-2 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-[9px] font-bold text-slate-500 transition-colors"
+                                            className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-[9px] font-bold text-slate-500 dark:text-zinc-400 transition-colors"
                                         >
                                             {ch}
                                         </button>
@@ -335,18 +352,18 @@ export const StoresPanel: React.FC = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                                    Formát predajne (Tier)
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1.5">
+                                    {t('storeTierFormat')}
                                 </label>
                                 <select 
                                     value={editingStore.storeTier || 'super'} 
                                     onChange={e => setEditingStore({...editingStore, storeTier: e.target.value})} 
-                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors" 
+                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 dark:bg-zinc-900/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors" 
                                 >
-                                    <option value="hyper">Hypermarket (Veľkoformát)</option>
-                                    <option value="super">Supermarket (Stredný formát)</option>
-                                    <option value="convenience">Convenience (Mini/Lokál)</option>
-                                    <option value="express">Express / Čerpadlo</option>
+                                    <option value="hyper">{t('tierHypermarketFull')}</option>
+                                    <option value="super">{t('tierSupermarketFull')}</option>
+                                    <option value="convenience">{t('tierConvenienceFull')}</option>
+                                    <option value="express">{t('tierExpressFull')}</option>
                                 </select>
                             </div>
                         </div>
@@ -354,15 +371,15 @@ export const StoresPanel: React.FC = () => {
                         {/* Address and City */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                                    Mesto
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1.5">
+                                    {t('city')}
                                 </label>
                                 <input 
                                     type="text" 
-                                    placeholder="Napr. Bratislava"
+                                    placeholder={t('cityPlaceholder')}
                                     value={editingStore.city || ''} 
                                     onChange={e => setEditingStore({...editingStore, city: e.target.value})} 
-                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors placeholder:text-slate-300" 
+                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 dark:bg-zinc-900/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors placeholder:text-slate-300" 
                                 />
                                 <div className="mt-2 flex flex-wrap gap-1.5">
                                     {citySuggestions.map(ct => (
@@ -370,7 +387,7 @@ export const StoresPanel: React.FC = () => {
                                             key={ct} 
                                             type="button" 
                                             onClick={() => setEditingStore({...editingStore, city: ct})}
-                                            className="px-2 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-[9px] font-bold text-slate-500 transition-colors"
+                                            className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg text-[9px] font-bold text-slate-500 dark:text-zinc-400 transition-colors"
                                         >
                                             {ct}
                                         </button>
@@ -378,90 +395,90 @@ export const StoresPanel: React.FC = () => {
                                 </div>
                             </div>
                             <div className="md:col-span-2">
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                                    Ulica, súpisné číslo
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1.5">
+                                    {t('streetAddress')}
                                 </label>
                                 <input 
                                     type="text" 
-                                    placeholder="Napr. Panónska cesta 25"
+                                    placeholder={t('streetAddressPlaceholder')}
                                     value={editingStore.address || ''} 
                                     onChange={e => setEditingStore({...editingStore, address: e.target.value})} 
-                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors placeholder:text-slate-300" 
+                                    className="block w-full rounded-xl border-slate-200/80 bg-slate-50/50 dark:bg-zinc-900/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 px-4 transition-colors placeholder:text-slate-300" 
                                 />
                             </div>
                         </div>
 
                         {/* PROPOSED DATA ENRICHMENT: GPS alignment, Target KPI and Contact person information */}
                         <div className="p-6 bg-slate-50/30 border border-slate-100/50 rounded-2xl space-y-4">
-                            <h4 className="text-xs font-black text-slate-700 flex items-center gap-1">
-                                <Sparkles className="w-4 h-4 text-emerald-600" /> PROPOZÍCIA: Doplnkové meta-údaje pre bohatšie audity
+                            <h4 className="text-xs font-black text-slate-700 dark:text-zinc-300 flex items-center gap-1">
+                                <Sparkles className="w-4 h-4 text-emerald-600" /> {t('metadataEnrichmentProposal')}
                             </h4>
-                            <p className="text-[10px] text-slate-500 font-medium">
-                                Nasledujúce údaje prepoja vaše analýzy Share of Shelf / Compliance s reálnymi KPI cieľmi predajnej siete a logistickým plánovaním auditov.
+                            <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">
+                                {t('metadataEnrichmentDesc')}
                             </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                                 <div>
-                                    <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                        Cieľový podiel na regáli (%)
+                                    <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">
+                                        {t('targetShelfShare')}
                                     </label>
                                     <input 
                                         type="number" 
-                                        min="0"
-                                        max="100"
-                                        placeholder="Napr. 30"
+                                        min="0" 
+                                        max="100" 
+                                        placeholder="30"
                                         value={editingStore.targetShelfShare || ''} 
                                         onChange={e => setEditingStore({...editingStore, targetShelfShare: e.target.value ? Number(e.target.value) : undefined})} 
-                                        className="block w-full rounded-xl border-slate-200/85 bg-white shadow-xs focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold px-3 py-2.5 transition-colors" 
+                                        className="block w-full rounded-xl border-slate-200/85 bg-white dark:bg-zinc-900 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold px-3 py-2.5 transition-colors" 
                                     />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                        GPS Súradnice (Latitude, Longitude)
+                                    <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">
+                                        {t('gpsCoordinates')}
                                     </label>
                                     <input 
                                         type="text" 
-                                        placeholder="Napr. 48.114704, 17.112165"
+                                        placeholder="48.114704, 17.112165"
                                         value={editingStore.gpsCoordinates || ''} 
                                         onChange={e => setEditingStore({...editingStore, gpsCoordinates: e.target.value})} 
-                                        className="block w-full rounded-xl border-slate-200/85 bg-white shadow-xs focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold px-3 py-2.5 transition-colors" 
+                                        className="block w-full rounded-xl border-slate-200/85 bg-white dark:bg-zinc-900 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold px-3 py-2.5 transition-colors" 
                                     />
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
-                                    <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                        Zodpovedný vedúci / Manažér
+                                    <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">
+                                        {t('storeManager')}
                                     </label>
                                     <input 
                                         type="text" 
-                                        placeholder="Meno, pozícia"
+                                        placeholder={t('storeManagerPlaceholder')}
                                         value={editingStore.contactPerson || ''} 
                                         onChange={e => setEditingStore({...editingStore, contactPerson: e.target.value})} 
-                                        className="block w-full rounded-xl border-slate-200/85 bg-white shadow-xs focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold px-3 py-2.5 transition-colors" 
+                                        className="block w-full rounded-xl border-slate-200/85 bg-white dark:bg-zinc-900 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold px-3 py-2.5 transition-colors" 
                                     />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                        Interná poznámka / Pokyny k foteniu regálov
+                                    <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">
+                                        {t('internalAuditNotes')}
                                     </label>
                                     <input 
                                         type="text" 
-                                        placeholder="Zadajte interné poznámky, pokyny pre audítora..."
+                                        placeholder={t('storeInternalNotesPlaceholder')}
                                         value={editingStore.description || ''} 
                                         onChange={e => setEditingStore({...editingStore, description: e.target.value})} 
-                                        className="block w-full rounded-xl border-slate-200/85 bg-white shadow-xs focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold px-3 py-2.5 transition-colors" 
+                                        className="block w-full rounded-xl border-slate-200/85 bg-white dark:bg-zinc-900 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold px-3 py-2.5 transition-colors" 
                                     />
                                 </div>
                             </div>
                         </div>
 
                         {/* Save Actions */}
-                        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+                        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 dark:border-zinc-800">
                             <button 
                                 onClick={() => setIsEditing(false)} 
-                                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs uppercase tracking-wider transition-colors"
+                                className="px-5 py-2.5 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 font-bold rounded-xl text-xs uppercase tracking-wider transition-colors"
                             >
                                 {t('cancelButton')}
                             </button>
@@ -482,46 +499,46 @@ export const StoresPanel: React.FC = () => {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         
                         {/* Summary Widget 1 */}
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100/50 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
-                            <div className="p-3 bg-slate-50 rounded-xl text-emerald-600">
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-100/50 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
+                            <div className="p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-xl text-emerald-600">
                                 <Building2 className="w-6 h-6" />
                             </div>
                             <div>
-                                <span className="block text-[10px] font-black uppercase text-slate-400">Predajne</span>
-                                <span className="text-xl font-black text-slate-900">{totalStoresCount}</span>
+                                <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-zinc-500">{t('stores')}</span>
+                                <span className="text-xl font-black text-slate-900 dark:text-zinc-100">{totalStoresCount}</span>
                             </div>
                         </div>
 
                         {/* Summary Widget 2 */}
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100/50 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
-                            <div className="p-3 bg-slate-50 rounded-xl text-blue-600">
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-100/50 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
+                            <div className="p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-xl text-blue-600">
                                 <SlidersHorizontal className="w-6 h-6" />
                             </div>
                             <div>
-                                <span className="block text-[10px] font-black uppercase text-slate-400">Reťazce</span>
-                                <span className="text-xl font-black text-slate-900">{uniqueChainsCount}</span>
+                                <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-zinc-500">{t('chains')}</span>
+                                <span className="text-xl font-black text-slate-900 dark:text-zinc-100">{uniqueChainsCount}</span>
                             </div>
                         </div>
 
                         {/* Summary Widget 3 */}
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100/50 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
-                            <div className="p-3 bg-slate-50 rounded-xl text-purple-600">
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-100/50 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
+                            <div className="p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-xl text-purple-600">
                                 <BarChart3 className="w-6 h-6" />
                             </div>
                             <div>
-                                <span className="block text-[10px] font-black uppercase text-slate-400">Zrealizované Audity</span>
-                                <span className="text-xl font-black text-slate-900">{totalAuditsCount}</span>
+                                <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-zinc-500">{t('completedAudits')}</span>
+                                <span className="text-xl font-black text-slate-900 dark:text-zinc-100">{totalAuditsCount}</span>
                             </div>
                         </div>
 
                         {/* Summary Widget 4 */}
-                        <div className="bg-white p-5 rounded-2xl border border-slate-100/50 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
-                            <div className="p-3 bg-slate-50 rounded-xl text-amber-500">
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-100/50 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
+                            <div className="p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-xl text-amber-500">
                                 <CheckCircle2 className="w-6 h-6" />
                             </div>
                             <div>
-                                <span className="block text-[10px] font-black uppercase text-slate-400">Priem. Zhoda (Compliance)</span>
-                                <span className="text-xl font-black text-slate-900">
+                                <span className="block text-[10px] font-black uppercase text-slate-400 dark:text-zinc-500">{t('avgComplianceScore')}</span>
+                                <span className="text-xl font-black text-slate-900 dark:text-zinc-100">
                                     {globalAvgCompliance ? `${globalAvgCompliance}%` : 'N/A'}
                                 </span>
                             </div>
@@ -529,24 +546,24 @@ export const StoresPanel: React.FC = () => {
                     </div>
 
                     {/* SEARCH, FILTERS & SORTERS BAR */}
-                    <div className="bg-white p-4 rounded-2xl border border-slate-100/60 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                    <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-slate-100/60 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
                         
                         {/* Search input with magnify glass */}
                         <div className="relative flex-grow max-w-md">
                             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                <Search className="h-4 w-4 text-slate-400" />
+                                <Search className="h-4 w-4 text-slate-400 dark:text-zinc-500" />
                             </div>
                             <input 
                                 type="text"
-                                placeholder="Hľadať názov, kód, reťazec alebo mesto..."
+                                placeholder={t('searchStorePlaceholderText')}
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="block w-full rounded-xl border-slate-100/70 bg-slate-50/50 pl-10 focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 transition-colors placeholder:text-slate-400"
+                                className="block w-full rounded-xl border-slate-100/70 bg-slate-50/50 dark:bg-zinc-900/60 pl-10 focus:border-emerald-500 focus:ring-emerald-500 text-xs font-bold py-3 transition-colors placeholder:text-slate-400"
                             />
                             {searchQuery && (
                                 <button 
                                     onClick={() => setSearchQuery('')}
-                                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
+                                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 dark:text-zinc-500 hover:text-slate-600"
                                 >
                                     <X className="w-3.5 h-3.5" />
                                 </button>
@@ -560,9 +577,9 @@ export const StoresPanel: React.FC = () => {
                             <select
                                 value={selectedChainFilter}
                                 onChange={e => setSelectedChainFilter(e.target.value)}
-                                className="rounded-xl border-slate-100/70 bg-slate-50/50 text-xs font-bold py-2.5 px-3 text-slate-600 focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                                className="rounded-xl border-slate-100/70 bg-slate-50/50 dark:bg-zinc-900/60 text-xs font-bold py-2.5 px-3 text-slate-600 dark:text-zinc-400 focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                             >
-                                <option value="">Všetky reťazce</option>
+                                <option value="">{t('allChains')}</option>
                                 {availableChains.map(ch => (
                                     <option key={ch} value={ch}>{ch}</option>
                                 ))}
@@ -572,44 +589,44 @@ export const StoresPanel: React.FC = () => {
                             <select
                                 value={selectedTierFilter}
                                 onChange={e => setSelectedTierFilter(e.target.value)}
-                                className="rounded-xl border-slate-100/70 bg-slate-50/50 text-xs font-bold py-2.5 px-3 text-slate-600 focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                                className="rounded-xl border-slate-100/70 bg-slate-50/50 dark:bg-zinc-900/60 text-xs font-bold py-2.5 px-3 text-slate-600 dark:text-zinc-400 focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                             >
-                                <option value="">Všetky formáty</option>
+                                <option value="">{t('allFormats')}</option>
                                 {availableTiers.map(tr => (
                                     <option key={tr} value={tr}>{getTierLabel(tr)}</option>
                                 ))}
                             </select>
 
                             {/* Sorting options selector */}
-                            <div className="flex items-center gap-2 bg-slate-50/50 pl-3 pr-1.5 py-1.5 rounded-xl border border-slate-100/50 text-slate-600">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                                    <ArrowUpDown className="w-3.5 h-3.5" /> Triediť:
+                            <div className="flex items-center gap-2 bg-slate-50/50 dark:bg-zinc-900/60 pl-3 pr-1.5 py-1.5 rounded-xl border border-slate-100/50 text-slate-600 dark:text-zinc-400">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 flex items-center gap-1">
+                                    <ArrowUpDown className="w-3.5 h-3.5" /> {t('sortByLabel')}
                                 </span>
                                 <select
                                     value={sortBy}
                                     onChange={e => setSortBy(e.target.value as any)}
-                                    className="border-none bg-transparent p-0 text-xs font-black text-slate-800 focus:ring-0 cursor-pointer pr-5"
+                                    className="border-none bg-transparent p-0 text-xs font-black text-slate-800 dark:text-zinc-200 focus:ring-0 cursor-pointer pr-5"
                                 >
-                                    <option value="name">Názov (A-Z)</option>
-                                    <option value="code">Kódy prevádzok</option>
-                                    <option value="visits">Počet auditov</option>
-                                    <option value="performance">Miera zhody (%)</option>
+                                    <option value="name">{t('sortByName')}</option>
+                                    <option value="code">{t('sortByCode')}</option>
+                                    <option value="visits">{t('sortByVisits')}</option>
+                                    <option value="performance">{t('sortByPerformance')}</option>
                                 </select>
                             </div>
 
                             {/* View switcher: Grid / 1-Line list */}
-                            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/50">
+                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl border border-slate-200/50">
                                 <button
                                     onClick={() => setViewMode('grid')}
-                                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                    title="Mriežka (Karty)"
+                                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    title={t('gridViewCards')}
                                 >
                                     <LayoutGrid className="w-4 h-4" />
                                 </button>
                                 <button
                                     onClick={() => setViewMode('list')}
-                                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                    title="Zjednodušený zoznam (1 riadok)"
+                                    className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    title={t('listViewCompact')}
                                 >
                                     <List className="w-4 h-4" />
                                 </button>
@@ -628,15 +645,15 @@ export const StoresPanel: React.FC = () => {
                                         return (
                                             <div 
                                                 key={store.id} 
-                                                className={`bg-white rounded-3xl border border-slate-100/60 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden ${getChainBorderColor(store.chain)}`}
+                                                className={`bg-white dark:bg-zinc-900 rounded-3xl border border-slate-100/60 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col overflow-hidden ${getChainBorderColor(store.chain)}`}
                                             >
                                                 
                                                 {/* Store Card Header */}
                                                 <div className="p-5 flex items-start justify-between gap-4">
-                                                    <div className="space-y-1 bg-white">
+                                                    <div className="space-y-1 bg-white dark:bg-zinc-900">
                                                         <div className="flex flex-wrap items-center gap-1.5">
                                                             {store.chain && (
-                                                                <span className="bg-slate-50 text-[10px] uppercase font-black px-2.5 py-1 rounded-lg text-slate-500 border border-slate-100/50">
+                                                                <span className="bg-slate-50 dark:bg-zinc-800/60 text-[10px] uppercase font-black px-2.5 py-1 rounded-lg text-slate-500 dark:text-zinc-400 border border-slate-100/50">
                                                                     {store.chain}
                                                                 </span>
                                                             )}
@@ -651,10 +668,10 @@ export const StoresPanel: React.FC = () => {
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <h3 className="font-black text-base text-slate-900 leading-tight pt-1">
+                                                        <h3 className="font-black text-base text-slate-900 dark:text-zinc-100 leading-tight pt-1">
                                                             {store.name}
                                                         </h3>
-                                                        <p className="text-xs text-slate-400 font-medium flex items-center gap-1 pt-0.5 max-w-sm truncate">
+                                                        <p className="text-xs text-slate-400 dark:text-zinc-500 font-medium flex items-center gap-1 pt-0.5 max-w-sm truncate">
                                                             <MapPin className="w-3.5 h-3.5 text-slate-400/80 shrink-0" />
                                                             {[store.address, store.city].filter(Boolean).join(', ')}
                                                         </p>
@@ -667,23 +684,23 @@ export const StoresPanel: React.FC = () => {
                                                                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.gpsCoordinates)}`}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                title="Otvoriť na mape v novom okne"
-                                                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                                                                title={t('openOnMap')}
+                                                                className="p-2 text-slate-400 dark:text-zinc-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
                                                             >
                                                                 <Navigation className="w-4 h-4" />
                                                             </a>
                                                         )}
                                                         <button 
                                                             onClick={() => { setEditingStore(store); setIsEditing(true); }} 
-                                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                                                            title="Upraviť detaily predajne"
+                                                            className="p-2 text-slate-400 dark:text-zinc-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                                            title={t('editStoreDetails')}
                                                         >
                                                             <Edit2 className="w-4 h-4" />
                                                         </button>
                                                         <button 
                                                             onClick={() => store.id && handleDelete(store.id)} 
-                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                                            title="Vymazať miesto"
+                                                            className="p-2 text-slate-400 dark:text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                                            title={t('deleteStoreTitle')}
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
@@ -691,17 +708,17 @@ export const StoresPanel: React.FC = () => {
                                                 </div>
 
                                                 {/* HIGH-LEVEL AUDIT TELEMETRY ON CARD */}
-                                                <div className="mx-5 mb-5 p-4 bg-slate-50/50 rounded-2xl border border-slate-100/30 grid grid-cols-3 gap-3 text-center text-[10px] font-bold text-slate-500">
+                                                <div className="mx-5 mb-5 p-4 bg-slate-50/50 dark:bg-zinc-900/60 rounded-2xl border border-slate-100/30 grid grid-cols-3 gap-3 text-center text-[10px] font-bold text-slate-500 dark:text-zinc-400">
                                                     
                                                     {/* Metric 1 */}
                                                     <div>
-                                                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black block">Návštevy</span>
-                                                        <span className="text-sm font-black text-slate-800 mt-0.5 block">{store.visitsCount}x</span>
+                                                        <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-zinc-500 font-black block">{t('visits')}</span>
+                                                        <span className="text-sm font-black text-slate-800 dark:text-zinc-200 mt-0.5 block">{store.visitsCount}x</span>
                                                     </div>
 
                                                     {/* Metric 2 */}
                                                     <div>
-                                                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black block">Miera Zhody</span>
+                                                        <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-zinc-500 font-black block">{t('complianceRate')}</span>
                                                         <span className={`text-sm font-black mt-0.5 block ${
                                                             store.avgCompliance === null ? 'text-slate-400' :
                                                             store.avgCompliance >= 80 ? 'text-emerald-600' : 'text-red-500'
@@ -712,11 +729,11 @@ export const StoresPanel: React.FC = () => {
 
                                                     {/* Metric 3 */}
                                                     <div>
-                                                        <span className="text-[9px] uppercase tracking-wider text-slate-400 font-black block">Posledný audit</span>
-                                                        <span className="text-[10px] font-semibold text-slate-700 mt-1 block truncate">
+                                                        <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-zinc-500 font-black block">{t('lastAudit')}</span>
+                                                        <span className="text-[10px] font-semibold text-slate-700 dark:text-zinc-300 mt-1 block truncate">
                                                             {store.lastAuditDate 
-                                                                ? new Date(store.lastAuditDate).toLocaleDateString('sk-SK') 
-                                                                : 'Nebol'
+                                                                ? formatDate(store.lastAuditDate) 
+                                                                : t('noAuditsYet')
                                                             }
                                                         </span>
                                                     </div>
@@ -726,26 +743,26 @@ export const StoresPanel: React.FC = () => {
                                                 <div className="border-t border-slate-50">
                                                     <button 
                                                         onClick={() => toggleStoreExpand(store.id || 0)}
-                                                        className="w-full py-3 px-5 text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-slate-50/20 hover:bg-slate-50/40 flex items-center justify-between transition-colors"
+                                                        className="w-full py-3 px-5 text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 bg-slate-50/20 hover:bg-slate-50/40 flex items-center justify-between transition-colors"
                                                     >
                                                         <span className="flex items-center gap-1.5 font-black uppercase tracking-wider">
                                                             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                                                            {isExpanded ? 'Zatvoriť analytický sumár' : 'Zobraziť analytický sumár z auditov'}
+                                                            {isExpanded ? t('closeAuditSummary') : t('viewAuditSummary')}
                                                         </span>
                                                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                     </button>
 
                                                     {isExpanded && (
-                                                        <div className="p-5 bg-slate-50/30 space-y-4 border-t border-slate-100/50 text-slate-600">
+                                                        <div className="p-5 bg-slate-50/30 space-y-4 border-t border-slate-100/50 text-slate-600 dark:text-zinc-400">
                                                             
                                                             {/* Target vs Actual KPI benchmark info */}
                                                             {store.targetShelfShare ? (
                                                                 <div className="space-y-1.5">
                                                                     <div className="flex justify-between items-center text-[10px]">
                                                                         <span className="font-bold flex items-center gap-1">
-                                                                            <Target className="w-3.5 h-3.5 text-rose-500" /> KPI Cieľ podielu na regáli:
+                                                                            <Target className="w-3.5 h-3.5 text-rose-500" /> {t('kpiTargetShelfShare')}
                                                                         </span>
-                                                                        <span className="font-black text-slate-900">{store.targetShelfShare}%</span>
+                                                                        <span className="font-black text-slate-900 dark:text-zinc-100">{store.targetShelfShare}%</span>
                                                                     </div>
                                                                     <div className="w-full bg-slate-200/60 rounded-full h-2 overflow-hidden flex">
                                                                         <div 
@@ -757,54 +774,54 @@ export const StoresPanel: React.FC = () => {
                                                                         />
                                                                     </div>
                                                                     <div className="flex justify-between text-[8px] text-slate-450 font-semibold uppercase tracking-wider">
-                                                                        <span>Reálny podiel: {store.avgCompliance || 0}%</span>
-                                                                        <span>Cieľový podiel: {store.targetShelfShare}%</span>
+                                                                        <span>{t('actualShare', { share: store.avgCompliance || 0 })}</span>
+                                                                        <span>{t('targetShare', { share: store.targetShelfShare })}</span>
                                                                     </div>
                                                                 </div>
                                                             ) : (
-                                                                <p className="text-[9px] text-slate-400 italic">Pre túto predajňu zatiaľ nie je zadefinovaný KPI cieľ podielu.</p>
+                                                                <p className="text-[9px] text-slate-400 dark:text-zinc-500 italic">{t('noKpiDefined')}</p>
                                                             )}
 
                                                             {/* Split specs */}
                                                             <div className="grid grid-cols-2 gap-4 text-xs">
                                                                 
                                                                 {/* Side 1: Logistics & Contact meta */}
-                                                                <div className="space-y-2 bg-white p-3.5 rounded-xl border border-slate-100 flex flex-col justify-between">
-                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block pb-0.5 border-b border-slate-50">Logistické parametre</span>
+                                                                <div className="space-y-2 bg-white dark:bg-zinc-900 p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800 flex flex-col justify-between">
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 block pb-0.5 border-b border-slate-50">{t('logisticalParams')}</span>
                                                                     
-                                                                    <p className="text-[10px] font-bold text-slate-700 flex items-center gap-1.5 mt-1.5">
-                                                                        <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                                        <span className="truncate">{store.contactPerson || 'Nedefinovaný vedúci'}</span>
+                                                                    <p className="text-[10px] font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5 mt-1.5">
+                                                                        <User className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 shrink-0" />
+                                                                        <span className="truncate">{store.contactPerson || t('undefinedManager')}</span>
                                                                     </p>
                                                                     
-                                                                    <p className="text-[9px] font-mono font-medium text-slate-500 flex items-center gap-1.5 mt-1">
-                                                                        <Navigation className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                                        <span className="truncate">{store.gpsCoordinates || 'Bez GPS súsadníc'}</span>
+                                                                    <p className="text-[9px] font-mono font-medium text-slate-500 dark:text-zinc-400 flex items-center gap-1.5 mt-1">
+                                                                        <Navigation className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 shrink-0" />
+                                                                        <span className="truncate">{store.gpsCoordinates || t('noGpsCoordinates')}</span>
                                                                     </p>
 
                                                                     {store.description && (
-                                                                        <p className="text-[9px] italic text-slate-500 mt-2 p-1.5 bg-slate-50 rounded border border-slate-100/50">
+                                                                        <p className="text-[9px] italic text-slate-500 dark:text-zinc-400 mt-2 p-1.5 bg-slate-50 dark:bg-zinc-800/60 rounded border border-slate-100/50">
                                                                             "{store.description}"
                                                                         </p>
                                                                     )}
                                                                 </div>
 
                                                                 {/* Side 2: Audit specific summaries */}
-                                                                <div className="space-y-1.5 bg-white p-3.5 rounded-xl border border-slate-100 text-[10px]">
-                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block pb-1 border-b border-slate-50 mb-1">Počty zo skenovania</span>
+                                                                <div className="space-y-1.5 bg-white dark:bg-zinc-900 p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800 text-[10px]">
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 block pb-1 border-b border-slate-50 mb-1">{t('scanCounts')}</span>
                                                                     
                                                                     <div className="flex justify-between">
-                                                                        <span>Priemerná hustota produktov:</span>
-                                                                        <span className="font-extrabold text-slate-800">{store.avgProducts} SKU</span>
+                                                                        <span>{t('avgProductDensity')}</span>
+                                                                        <span className="font-extrabold text-slate-800 dark:text-zinc-200">{store.avgProducts} SKU</span>
                                                                     </div>
                                                                     <div className="flex justify-between">
-                                                                        <span>Detegované POS materiály:</span>
-                                                                        <span className="font-extrabold text-slate-800">{store.totalPosMaterials} ks</span>
+                                                                        <span>{t('detectedPosMaterials')}</span>
+                                                                        <span className="font-extrabold text-slate-800 dark:text-zinc-200">{store.totalPosMaterials} {t('piecesShort')}</span>
                                                                     </div>
                                                                     <div className="flex justify-between">
-                                                                        <span>Celkové náklady na API:</span>
-                                                                        <span className="font-extrabold text-slate-800 font-mono">
-                                                                            {store.totalCost ? `${store.totalCost.toFixed(4)} €` : '0.00 €'}
+                                                                        <span>{t('totalApiCost')}</span>
+                                                                        <span className="font-extrabold text-slate-800 dark:text-zinc-200 font-mono">
+                                                                            {store.totalCost ? `${store.totalCost.toFixed(4)} ` : '0.00 '}
                                                                         </span>
                                                                     </div>
                                                                 </div>
@@ -813,24 +830,24 @@ export const StoresPanel: React.FC = () => {
                                                             {/* Last Visits Timeline */}
                                                             {store.latestAnalyses.length > 0 && (
                                                                 <div className="space-y-2">
-                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Posledné návštevy (Audity)</span>
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 block">{t('recentVisits')}</span>
                                                                     <div className="space-y-1.5">
                                                                         {store.latestAnalyses.map((an, idx) => {
                                                                             const anyCompliance = an.images?.find(i => i.analysisResult?.complianceScore !== undefined)?.analysisResult?.complianceScore;
                                                                             
                                                                             return (
-                                                                                <div key={an.id || idx} className="bg-white px-3 py-2 rounded-xl border border-slate-100 flex items-center justify-between text-[11px]">
-                                                                                    <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                                                                                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                                                                        {new Date(an.createdAt).toLocaleDateString('sk-SK')} v {new Date(an.createdAt).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}
+                                                                                <div key={an.id || idx} className="bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
+                                                                                    <span className="font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                                                                                        <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
+                                                                                        {formatDateTime(an.createdAt)}
                                                                                     </span>
                                                                                     <div className="flex items-center gap-2">
-                                                                                        <span className="text-[9px] text-slate-400 font-medium font-mono">#{an.id.slice(0, 6)}</span>
+                                                                                        <span className="text-[9px] text-slate-400 dark:text-zinc-500 font-medium font-mono">#{an.id.slice(0, 6)}</span>
                                                                                         {anyCompliance !== undefined && (
                                                                                             <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${
                                                                                                 anyCompliance >= 80 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
                                                                                             }`}>
-                                                                                                Zhoda {anyCompliance}%
+                                                                                                {t('complianceBadge', { percent: anyCompliance })}
                                                                                             </span>
                                                                                         )}
                                                                                     </div>
@@ -852,14 +869,14 @@ export const StoresPanel: React.FC = () => {
                             ) : (
                                 <div className="flex flex-col gap-2">
                                     {/* Desktop/tablet table header */}
-                                    <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3.5 bg-white rounded-2xl border border-slate-100 text-[10px] uppercase font-black tracking-wider text-slate-400">
-                                        <div className="col-span-3">Názov predajne / Kód</div>
-                                        <div className="col-span-2 text-center">Reťazec & Formát</div>
-                                        <div className="col-span-3">Lokácia / Adresa</div>
-                                        <div className="col-span-1 text-center">Návštevy</div>
-                                        <div className="col-span-1 text-center">Miera zhody</div>
-                                        <div className="col-span-1 text-center font-black">Cieľ KPI</div>
-                                        <div className="col-span-1 text-right pr-2">Akcie</div>
+                                    <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3.5 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 text-[10px] uppercase font-black tracking-wider text-slate-400 dark:text-zinc-500">
+                                        <div className="col-span-3">{t('colStoreNameCode')}</div>
+                                        <div className="col-span-2 text-center">{t('colChainFormat')}</div>
+                                        <div className="col-span-3">{t('colLocationAddress')}</div>
+                                        <div className="col-span-1 text-center">{t('colVisits')}</div>
+                                        <div className="col-span-1 text-center">{t('colComplianceRate')}</div>
+                                        <div className="col-span-1 text-center font-black">{t('colTargetKpi')}</div>
+                                        <div className="col-span-1 text-right pr-2">{t('colActions')}</div>
                                     </div>
                                     {sortedStores.map(store => {
                                         const isExpanded = !!expandedStores[store.id || 0];
@@ -867,14 +884,14 @@ export const StoresPanel: React.FC = () => {
                                         return (
                                             <div 
                                                 key={store.id} 
-                                                className={`bg-white rounded-2xl border border-slate-100 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden ${getChainBorderColor(store.chain)}`}
+                                                className={`bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col overflow-hidden ${getChainBorderColor(store.chain)}`}
                                             >
                                                 {/* Compact single row wrapper */}
-                                                <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-4 py-3 px-6 text-xs text-slate-700 font-semibold">
+                                                <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-4 py-3 px-6 text-xs text-slate-700 dark:text-zinc-300 font-semibold">
                                                     
                                                     {/* Store name and code */}
                                                     <div className="col-span-1 lg:col-span-3 flex items-center gap-2 min-w-0">
-                                                        <span className="font-extrabold text-slate-900 truncate" title={store.name}>
+                                                        <span className="font-extrabold text-slate-900 dark:text-zinc-100 truncate" title={store.name}>
                                                             {store.name}
                                                         </span>
                                                         {store.code && (
@@ -887,7 +904,7 @@ export const StoresPanel: React.FC = () => {
                                                     {/* Chain and format tier */}
                                                     <div className="col-span-1 lg:col-span-2 flex items-center lg:justify-center gap-1.5 flex-wrap">
                                                         {store.chain && (
-                                                            <span className="bg-slate-50 text-[9px] uppercase font-black px-2 py-0.5 rounded-md text-slate-500 border border-slate-100">
+                                                            <span className="bg-slate-50 dark:bg-zinc-800/60 text-[9px] uppercase font-black px-2 py-0.5 rounded-md text-slate-500 dark:text-zinc-400 border border-slate-100 dark:border-zinc-800">
                                                                 {store.chain}
                                                             </span>
                                                         )}
@@ -899,7 +916,7 @@ export const StoresPanel: React.FC = () => {
                                                     </div>
 
                                                     {/* Address and City */}
-                                                    <div className="col-span-1 lg:col-span-3 text-slate-400 text-[11px] truncate flex items-center gap-1">
+                                                    <div className="col-span-1 lg:col-span-3 text-slate-400 dark:text-zinc-500 text-[11px] truncate flex items-center gap-1">
                                                         <MapPin className="w-3.5 h-3.5 text-slate-400/70 shrink-0" />
                                                         <span className="truncate" title={[store.address, store.city].filter(Boolean).join(', ')}>
                                                             {[store.address, store.city].filter(Boolean).join(', ')}
@@ -907,14 +924,14 @@ export const StoresPanel: React.FC = () => {
                                                     </div>
 
                                                     {/* Visit amount */}
-                                                    <div className="col-span-1 lg:col-span-1 lg:text-center font-bold text-slate-800">
-                                                        <span className="lg:hidden text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">Návštevy: </span>
+                                                    <div className="col-span-1 lg:col-span-1 lg:text-center font-bold text-slate-800 dark:text-zinc-200">
+                                                        <span className="lg:hidden text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 block mb-0.5">{t('colVisits')}: </span>
                                                         {store.visitsCount}x
                                                     </div>
 
                                                     {/* Compliance Score */}
                                                     <div className="col-span-1 lg:col-span-1 lg:text-center">
-                                                        <span className="lg:hidden text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">Miera zhody: </span>
+                                                        <span className="lg:hidden text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 block mb-0.5">{t('colComplianceRate')}: </span>
                                                         <span className={`font-black ${
                                                             store.avgCompliance === null ? 'text-slate-400' :
                                                             store.avgCompliance >= 80 ? 'text-emerald-600' : 'text-red-500'
@@ -925,7 +942,7 @@ export const StoresPanel: React.FC = () => {
 
                                                     {/* Target KPI Share */}
                                                     <div className="col-span-1 lg:col-span-1 lg:text-center font-semibold text-slate-650">
-                                                        <span className="lg:hidden text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-0.5">Cieľ KPI: </span>
+                                                        <span className="lg:hidden text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 block mb-0.5">{t('colTargetKpi')}: </span>
                                                         {store.targetShelfShare ? `${store.targetShelfShare}%` : '—'}
                                                     </div>
 
@@ -933,8 +950,8 @@ export const StoresPanel: React.FC = () => {
                                                     <div className="col-span-1 lg:col-span-1 flex items-center justify-end gap-1 shrink-0">
                                                         <button 
                                                             onClick={() => toggleStoreExpand(store.id || 0)}
-                                                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all"
-                                                            title={isExpanded ? 'Zatvoriť sumár' : 'Zobraziť sumár'}
+                                                            className="p-1.5 text-slate-400 dark:text-zinc-500 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-zinc-800/60 rounded-lg transition-all"
+                                                            title={isExpanded ? t('closeAuditSummary') : t('viewAuditSummary')}
                                                         >
                                                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                         </button>
@@ -943,23 +960,23 @@ export const StoresPanel: React.FC = () => {
                                                                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.gpsCoordinates)}`}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                                                                title="Otvoriť v mapách"
+                                                                className="p-1.5 text-slate-400 dark:text-zinc-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                                                                title={t('openOnMap')}
                                                             >
                                                                 <Navigation className="w-4 h-4" />
                                                             </a>
                                                         )}
                                                         <button 
                                                             onClick={() => { setEditingStore(store); setIsEditing(true); }} 
-                                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                            title="Upraviť"
+                                                            className="p-1.5 text-slate-400 dark:text-zinc-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                            title={t('editStoreDetails')}
                                                         >
                                                             <Edit2 className="w-4 h-4" />
                                                         </button>
                                                         <button 
                                                             onClick={() => store.id && handleDelete(store.id)} 
-                                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                                            title="Vymazať"
+                                                            className="p-1.5 text-slate-400 dark:text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                            title={t('deleteStoreTitle')}
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
@@ -969,16 +986,16 @@ export const StoresPanel: React.FC = () => {
 
                                                 {/* IN-LINE EXPANDABLE SLATE ACCORDION */}
                                                 {isExpanded && (
-                                                    <div className="p-5 bg-slate-50/50 space-y-4 border-t border-slate-100 text-slate-600">
+                                                    <div className="p-5 bg-slate-50/50 dark:bg-zinc-900/60 space-y-4 border-t border-slate-100 dark:border-zinc-800 text-slate-600 dark:text-zinc-400">
                                                         
                                                         {/* Target vs Actual KPI benchmark info */}
                                                         {store.targetShelfShare ? (
                                                             <div className="space-y-1.5">
                                                                 <div className="flex justify-between items-center text-[10px]">
                                                                     <span className="font-bold flex items-center gap-1">
-                                                                        <Target className="w-3.5 h-3.5 text-rose-500" /> KPI Cieľ podielu na regáli:
+                                                                        <Target className="w-3.5 h-3.5 text-rose-500" /> {t('kpiTargetShelfShare')}
                                                                     </span>
-                                                                    <span className="font-black text-slate-900">{store.targetShelfShare}%</span>
+                                                                    <span className="font-black text-slate-900 dark:text-zinc-100">{store.targetShelfShare}%</span>
                                                                 </div>
                                                                 <div className="w-full bg-slate-200/60 rounded-full h-2 overflow-hidden flex">
                                                                     <div 
@@ -990,54 +1007,54 @@ export const StoresPanel: React.FC = () => {
                                                                     />
                                                                 </div>
                                                                 <div className="flex justify-between text-[8px] text-slate-450 font-semibold uppercase tracking-wider">
-                                                                    <span>Reálny podiel: {store.avgCompliance || 0}%</span>
-                                                                    <span>Cieľový podiel: {store.targetShelfShare}%</span>
+                                                                    <span>{t('actualShare', { share: store.avgCompliance || 0 })}</span>
+                                                                    <span>{t('targetShare', { share: store.targetShelfShare })}</span>
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <p className="text-[9px] text-slate-400 italic">Pre túto predajňu zatiaľ nie je zadefinovaný KPI cieľ podielu.</p>
+                                                            <p className="text-[9px] text-slate-400 dark:text-zinc-500 italic">{t('noKpiDefined')}</p>
                                                         )}
 
                                                         {/* Split specs */}
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                                                             
                                                             {/* Side 1: Logistics & Contact meta */}
-                                                            <div className="space-y-2 bg-white p-3.5 rounded-xl border border-slate-100 flex flex-col justify-between">
-                                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block pb-0.5 border-b border-slate-50">Logistické parametre</span>
+                                                            <div className="space-y-2 bg-white dark:bg-zinc-900 p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800 flex flex-col justify-between">
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 block pb-0.5 border-b border-slate-50">{t('logisticalParams')}</span>
                                                                 
-                                                                <p className="text-[10px] font-bold text-slate-700 flex items-center gap-1.5 mt-1.5">
-                                                                    <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                                    <span className="truncate">{store.contactPerson || 'Nedefinovaný vedúci'}</span>
+                                                                <p className="text-[10px] font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5 mt-1.5">
+                                                                    <User className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 shrink-0" />
+                                                                    <span className="truncate">{store.contactPerson || t('undefinedManager')}</span>
                                                                 </p>
                                                                 
-                                                                <p className="text-[9px] font-mono font-medium text-slate-500 flex items-center gap-1.5 mt-1">
-                                                                    <Navigation className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                                    <span className="truncate">{store.gpsCoordinates || 'Bez GPS súsadníc'}</span>
+                                                                <p className="text-[9px] font-mono font-medium text-slate-500 dark:text-zinc-400 flex items-center gap-1.5 mt-1">
+                                                                    <Navigation className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 shrink-0" />
+                                                                    <span className="truncate">{store.gpsCoordinates || t('noGpsCoordinates')}</span>
                                                                 </p>
 
                                                                 {store.description && (
-                                                                    <p className="text-[9px] italic text-slate-500 mt-2 p-1.5 bg-slate-50 rounded border border-slate-100/50">
+                                                                    <p className="text-[9px] italic text-slate-500 dark:text-zinc-400 mt-2 p-1.5 bg-slate-50 dark:bg-zinc-800/60 rounded border border-slate-100/50">
                                                                         "{store.description}"
                                                                     </p>
                                                                 )}
                                                             </div>
 
                                                             {/* Side 2: Audit specific summaries */}
-                                                            <div className="space-y-1.5 bg-white p-3.5 rounded-xl border border-slate-100 text-[10px]">
-                                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block pb-1 border-b border-slate-50 mb-1">Počty zo skenovania</span>
+                                                            <div className="space-y-1.5 bg-white dark:bg-zinc-900 p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800 text-[10px]">
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 block pb-1 border-b border-slate-50 mb-1">{t('scanCounts')}</span>
                                                                 
                                                                 <div className="flex justify-between">
-                                                                    <span>Priemerná hustota produktov:</span>
-                                                                    <span className="font-extrabold text-slate-800">{store.avgProducts} SKU</span>
+                                                                    <span>{t('avgProductDensity')}</span>
+                                                                    <span className="font-extrabold text-slate-800 dark:text-zinc-200">{store.avgProducts} SKU</span>
                                                                 </div>
                                                                 <div className="flex justify-between">
-                                                                    <span>Detegované POS materiály:</span>
-                                                                    <span className="font-extrabold text-slate-800">{store.totalPosMaterials} ks</span>
+                                                                    <span>{t('detectedPosMaterials')}</span>
+                                                                    <span className="font-extrabold text-slate-800 dark:text-zinc-200">{store.totalPosMaterials} {t('piecesShort')}</span>
                                                                 </div>
                                                                 <div className="flex justify-between">
-                                                                    <span>Celkové náklady na API:</span>
-                                                                    <span className="font-extrabold text-slate-800 font-mono">
-                                                                        {store.totalCost ? `${store.totalCost.toFixed(4)} €` : '0.00 €'}
+                                                                    <span>{t('totalApiCost')}</span>
+                                                                    <span className="font-extrabold text-slate-800 dark:text-zinc-200 font-mono">
+                                                                        {store.totalCost ? `${store.totalCost.toFixed(4)} ` : '0.00 '}
                                                                     </span>
                                                                 </div>
                                                             </div>
@@ -1046,24 +1063,24 @@ export const StoresPanel: React.FC = () => {
                                                         {/* Last Visits Timeline */}
                                                         {store.latestAnalyses.length > 0 && (
                                                             <div className="space-y-2">
-                                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Posledné návštevy (Audity)</span>
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 block">{t('recentVisits')}</span>
                                                                 <div className="space-y-1.5">
                                                                     {store.latestAnalyses.map((an, idx) => {
                                                                         const anyCompliance = an.images?.find(i => i.analysisResult?.complianceScore !== undefined)?.analysisResult?.complianceScore;
                                                                         
                                                                         return (
-                                                                            <div key={an.id || idx} className="bg-white px-3 py-2 rounded-xl border border-slate-100 flex items-center justify-between text-[11px]">
-                                                                                <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                                                                                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                                                                    {new Date(an.createdAt).toLocaleDateString('sk-SK')} v {new Date(an.createdAt).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}
+                                                                            <div key={an.id || idx} className="bg-white dark:bg-zinc-900 px-3 py-2 rounded-xl border border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
+                                                                                <span className="font-bold text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
+                                                                                    <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
+                                                                                    {formatDateTime(an.createdAt)}
                                                                                 </span>
                                                                                 <div className="flex items-center gap-2">
-                                                                                    <span className="text-[9px] text-slate-400 font-medium font-mono">#{an.id.slice(0, 6)}</span>
+                                                                                    <span className="text-[9px] text-slate-400 dark:text-zinc-500 font-medium font-mono">#{an.id.slice(0, 6)}</span>
                                                                                     {anyCompliance !== undefined && (
                                                                                         <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${
                                                                                             anyCompliance >= 80 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
                                                                                         }`}>
-                                                                                            Zhoda {anyCompliance}%
+                                                                                            {t('complianceBadge', { percent: anyCompliance })}
                                                                                         </span>
                                                                                     )}
                                                                                 </div>
@@ -1082,12 +1099,12 @@ export const StoresPanel: React.FC = () => {
                                 </div>
                             )
                         ) : (
-                            <div className="text-center py-20 flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-100">
-                                <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mb-6">
+                            <div className="text-center py-20 flex flex-col items-center justify-center bg-white dark:bg-zinc-900 rounded-3xl border border-slate-100 dark:border-zinc-800">
+                                <div className="bg-slate-50 dark:bg-zinc-800/60 w-20 h-20 rounded-full flex items-center justify-center mb-6">
                                     <Building2 className="w-8 h-8 text-slate-300" />
                                 </div>
-                                <p className="text-base font-black text-slate-800 mb-1">{t('noStoresFound') || 'Neboli nájdené žiadne predajne.'}</p>
-                                <p className="text-xs text-slate-400 max-w-sm">Upravte filter hľadania alebo vytvorte novú predajňu kliknutím na pridať.</p>
+                                <p className="text-base font-black text-slate-800 dark:text-zinc-200 mb-1">{t('noStoresFound')}</p>
+                                <p className="text-xs text-slate-400 dark:text-zinc-500 max-w-sm">{t('adjustFilterOrCreateStore')}</p>
                             </div>
                         )}
                     </div>

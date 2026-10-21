@@ -60,7 +60,7 @@ export function parsePrice(priceValue: string | number | undefined | null): numb
 /**
  * Formats a numeric or string price into standard European display format "1.49 €" or "1.49".
  */
-export function formatPrice(priceValue: number | string | null | undefined, suffix: string = '€'): string {
+export function formatPrice(priceValue: number | string | null | undefined, suffix: string = ''): string {
   const num = parsePrice(priceValue);
   if (num === null) return '-';
   const formatted = num.toFixed(2);

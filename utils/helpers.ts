@@ -565,18 +565,69 @@ export const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-export const base64ToFile = (base64: string, name: string, type: string, lastModified: number): File => {
-  const byteCharacters = atob(base64);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
+export const base64ToFile = async (dataOrBase64: string, name: string, type: string, lastModified: number): Promise<File> => {
+  if (!dataOrBase64) {
+    return new File([], name, { type: type || 'image/jpeg', lastModified });
   }
-  const byteArray = new Uint8Array(byteNumbers);
-  const blob = new Blob([byteArray], { type });
-  return new File([blob], name, { type, lastModified });
+
+  // 1. If it's already a full data URI (e.g. data:image/svg+xml... or data:image/jpeg;base64,...)
+  if (dataOrBase64.startsWith('data:')) {
+    try {
+      const res = await fetch(dataOrBase64);
+      const blob = await res.blob();
+      return new File([blob], name, { type: blob.type || type, lastModified });
+    } catch {
+      const commaIdx = dataOrBase64.indexOf(',');
+      const meta = commaIdx !== -1 ? dataOrBase64.substring(0, commaIdx) : '';
+      const rawData = commaIdx !== -1 ? dataOrBase64.substring(commaIdx + 1) : dataOrBase64;
+      if (meta.includes(';base64')) {
+        const binStr = atob(rawData);
+        const bytes = new Uint8Array(binStr.length);
+        for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+        const blob = new Blob([bytes], { type: type || 'image/jpeg' });
+        return new File([blob], name, { type: type || 'image/jpeg', lastModified });
+      } else {
+        const decoded = decodeURIComponent(rawData);
+        const blob = new Blob([decoded], { type: type || 'image/svg+xml' });
+        return new File([blob], name, { type: type || 'image/svg+xml', lastModified });
+      }
+    }
+  }
+
+  // 2. If it's a blob URL
+  if (dataOrBase64.startsWith('blob:')) {
+    try {
+      const res = await fetch(dataOrBase64);
+      const blob = await res.blob();
+      return new File([blob], name, { type: blob.type || type, lastModified });
+    } catch (e) {
+      console.warn('Could not fetch blob url in base64ToFile', e);
+    }
+  }
+
+  // 3. Raw base64 string
+  try {
+    const mime = type || 'image/jpeg';
+    const res = await fetch(`data:${mime};base64,${dataOrBase64}`);
+    const blob = await res.blob();
+    return new File([blob], name, { type: mime, lastModified });
+  } catch {
+    const cleanB64 = dataOrBase64.includes(',') ? dataOrBase64.split(',')[1] : dataOrBase64;
+    const byteCharacters = atob(cleanB64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: type || 'image/jpeg' });
+    return new File([blob], name, { type: type || 'image/jpeg', lastModified });
+  }
 };
 
 export const compressImageWithWorker = (file: File, maxWidth: number = 2560, quality: number = 0.85): Promise<File> => {
+    if (file.type && !file.type.startsWith('image/')) {
+        return Promise.resolve(file);
+    }
     return new Promise((resolve) => {
         try {
             const worker = new Worker(new URL('../workers/imageWorker.ts', import.meta.url), { type: 'module' });

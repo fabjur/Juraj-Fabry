@@ -169,7 +169,7 @@ export const SalesappVisionBrand: React.FC<{ className?: string, hideText?: bool
     <VisionEyeIcon className="h-full" />
     {!hideText && (
       <span className="font-bold text-lg tracking-tight whitespace-nowrap">
-        <span className="text-gray-700">Salesapp</span>
+        <span className="text-gray-700 dark:text-zinc-300">Salesapp</span>
         <span className="text-lime-600">Vision</span>
       </span>
     )}

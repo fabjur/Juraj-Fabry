@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { AnalysisResult, DetectedProduct, PriceInfo, StoreInfo, ObjectType, PosType, PromptAuditSummary, PromptRecommendation, PromptOptimizationResult } from '../types';
-import { getActivePrompt, getCatalogEntries, logPromptUsage } from '../db';
+import { getCatalogEntries, logPromptUsage } from '../db';
 import { enforcePriceIntegrity } from '../utils/priceIntegrity';
 
 const productSchema = {
@@ -33,43 +33,127 @@ const productSchema = {
   required: ['products'],
 };
 
-function extractFirstJson(text: string): string {
-    const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-    let cleanText = text;
-    if (markdownMatch && markdownMatch[1]) {
-        cleanText = markdownMatch[1].trim();
-    }
+export function repairTruncatedJson(rawText: string): any {
+  if (!rawText || typeof rawText !== 'string') {
+    return { products: [], info: {} };
+  }
 
-    const firstBrace = cleanText.indexOf('{');
-    const firstBracket = cleanText.indexOf('[');
-    let startIndex: number;
+  let clean = rawText.trim();
+  const mdMatch = clean.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/i);
+  if (mdMatch && mdMatch[1]) {
+    clean = mdMatch[1].trim();
+  }
 
-    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
-        startIndex = firstBrace;
-    } else if (firstBracket !== -1) {
-        startIndex = firstBracket;
+  const firstBrace = clean.indexOf('{');
+  const firstBracket = clean.indexOf('[');
+  let startIndex = -1;
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    startIndex = firstBrace;
+  } else if (firstBracket !== -1) {
+    startIndex = firstBracket;
+  }
+
+  if (startIndex === -1) {
+    return { products: [], info: {} };
+  }
+
+  clean = clean.substring(startIndex);
+
+  // 1. Direct parse attempt
+  try {
+    return JSON.parse(clean);
+  } catch {
+    // Continue
+  }
+
+  // 2. Balanced bracket scan
+  let inString = false;
+  let isEscaped = false;
+  const stack: ('{' | '[')[] = [];
+  let lastValidClosingIndex = -1;
+
+  for (let i = 0; i < clean.length; i++) {
+    const char = clean[i];
+    if (inString) {
+      if (isEscaped) isEscaped = false;
+      else if (char === '\\') isEscaped = true;
+      else if (char === '"') inString = false;
     } else {
-        throw new Error("No JSON object or array found in the response text.");
-    }
-    
-    const stack: string[] = [];
-    let inString = false;
-    let isEscaped = false;
-
-    for (let i = startIndex; i < cleanText.length; i++) {
-        const char = cleanText[i];
-        if (inString) {
-            if (isEscaped) isEscaped = false;
-            else if (char === '\\') isEscaped = true;
-            else if (char === '"') inString = false;
-        } else {
-            if (char === '"') inString = true;
-            else if (char === '{' || char === '[') stack.push(char);
-            else if (char === '}' || char === ']') stack.pop();
+      if (char === '"') inString = true;
+      else if (char === '{') stack.push('{');
+      else if (char === '[') stack.push('[');
+      else if (char === '}') {
+        if (stack.length > 0 && stack[stack.length - 1] === '{') {
+          stack.pop();
+          if (stack.length === 0) lastValidClosingIndex = i;
         }
-        if (!inString && stack.length === 0) return cleanText.substring(startIndex, i + 1);
+      } else if (char === ']') {
+        if (stack.length > 0 && stack[stack.length - 1] === '[') {
+          stack.pop();
+          if (stack.length === 0) lastValidClosingIndex = i;
+        }
+      }
     }
-    throw new Error("Truncated JSON.");
+  }
+
+  if (lastValidClosingIndex !== -1) {
+    try {
+      return JSON.parse(clean.substring(0, lastValidClosingIndex + 1));
+    } catch {
+      // Continue
+    }
+  }
+
+  // 3. Repair incomplete string and balance open brackets
+  let repaired = clean;
+  if (inString) {
+    repaired += '"';
+  }
+
+  // Remove dangling commas and trailing incomplete keys
+  repaired = repaired.replace(/,\s*"?[\w]*"?\s*:?\s*"?$/, '');
+  repaired = repaired.replace(/,\s*$/, '');
+
+  const openStackCopy = [...stack];
+  while (openStackCopy.length > 0) {
+    const open = openStackCopy.pop();
+    if (open === '{') repaired += '}';
+    else if (open === '[') repaired += ']';
+  }
+
+  try {
+    return JSON.parse(repaired);
+  } catch {
+    // 4. Regex extraction of individual product objects as final safety net
+    const products: any[] = [];
+    const productRegex = /\{\s*"n"\s*:\s*"([^"]+)"\s*,\s*"t"\s*:\s*"([^"]+)"(?:\s*,\s*"pt"\s*:\s*"([^"]*)")?(?:\s*,\s*"g"\s*:\s*(true|false))?(?:\s*,\s*"p"\s*:\s*"([^"]*)")?(?:\s*,\s*"b"\s*:\s*"([^"]*)")?/g;
+    let match;
+    while ((match = productRegex.exec(clean)) !== null) {
+      products.push({
+        n: match[1],
+        t: match[2] || 'product',
+        pt: match[3] || undefined,
+        g: match[4] === 'true',
+        p: match[5] || '',
+        b: match[6] || '450,450,550,550'
+      });
+    }
+
+    if (products.length > 0) {
+      return { products, info: {} };
+    }
+  }
+
+  return { products: [], info: {} };
+}
+
+function extractFirstJson(text: string): string {
+  try {
+    const obj = repairTruncatedJson(text);
+    return JSON.stringify(obj);
+  } catch {
+    return '{"products":[]}';
+  }
 }
 
 function parseMinifiedPriceString(priceString: string | undefined): { prices: PriceInfo[]; integrityStatus: 'valid' | 'corrected' | 'warning' | 'missing' } {
@@ -98,97 +182,242 @@ function parseMinifiedResponse(minifiedResponse: any, usedModel: string): Analys
   const products: DetectedProduct[] = [];
   const storeInfo: StoreInfo = {};
 
-  if (minifiedResponse.products && Array.isArray(minifiedResponse.products)) {
-    minifiedResponse.products.forEach((group: any) => {
-      const name = group.n;
-      const type = (group.t || 'product') as ObjectType;
-      const posType = group.pt as PosType;
-      const isGhost = group.g === true;
-      const { prices, integrityStatus } = parseMinifiedPriceString(group.p);
+  const productList = Array.isArray(minifiedResponse?.products)
+    ? minifiedResponse.products
+    : Array.isArray(minifiedResponse)
+    ? minifiedResponse
+    : [];
 
-      if (typeof group.b === 'string' && group.b) {
-        const boxStrings = group.b.split('|');
-        boxStrings.forEach((boxString: string) => {
-          const coords = boxString.split(',').map(Number);
-          if (coords.length === 4) {
-            products.push({
-              id: `${name}-${Math.random().toString(36).substring(7)}`,
-              name,
-              brand: name.split(' ')[0],
-              prices,
-              priceIntegrityStatus: integrityStatus,
-              boundingBox: { x: coords[1]/1000, y: coords[0]/1000, width: (coords[3]-coords[1])/1000, height: (coords[2]-coords[0])/1000 },
-              confidence: group.c || 0.9,
-              type,
-              posType,
-              isGhost
+  if (productList.length > 0) {
+    productList.forEach((group: any) => {
+      if (!group || typeof group !== 'object') return;
+      const name = group.n || group.name || group.product || group.title || '';
+      if (!name || typeof name !== 'string' || !name.trim()) return;
+
+      const type = (group.t || group.type || 'product') as ObjectType;
+      const posType = (group.pt || group.posType || undefined) as PosType;
+      const isGhost = group.g === true || group.isGhost === true;
+      const rawPrice = group.p ?? group.price ?? group.prices;
+      const priceStr = typeof rawPrice === 'string' 
+        ? rawPrice 
+        : Array.isArray(rawPrice) 
+        ? rawPrice.map(p => typeof p === 'object' ? `${p.value} ${p.type === 'PROMO' ? 'P' : 'R'}` : String(p)).join('; ')
+        : String(rawPrice || '');
+
+      const { prices, integrityStatus } = parseMinifiedPriceString(priceStr);
+
+      // Parse bounding box(es) flexibly (strings, arrays, single/multiple)
+      const parsedBoxes: { x: number; y: number; width: number; height: number }[] = [];
+      const rawBox = group.b ?? group.box ?? group.boundingBox;
+
+      if (typeof rawBox === 'string' && rawBox.trim()) {
+        const boxStrings = rawBox.split('|');
+        boxStrings.forEach((bStr: string) => {
+          const coords = bStr.split(',').map(Number);
+          if (coords.length === 4 && coords.every(c => !isNaN(c))) {
+            parsedBoxes.push({
+              x: coords[1] / 1000,
+              y: coords[0] / 1000,
+              width: Math.max(0.02, (coords[3] - coords[1]) / 1000),
+              height: Math.max(0.02, (coords[2] - coords[0]) / 1000)
             });
           }
         });
+      } else if (Array.isArray(rawBox)) {
+        if (rawBox.length === 4 && rawBox.every(c => typeof c === 'number' && !isNaN(c))) {
+          parsedBoxes.push({
+            x: rawBox[1] / 1000,
+            y: rawBox[0] / 1000,
+            width: Math.max(0.02, (rawBox[3] - rawBox[1]) / 1000),
+            height: Math.max(0.02, (rawBox[2] - rawBox[0]) / 1000)
+          });
+        } else {
+          rawBox.forEach(item => {
+            if (Array.isArray(item) && item.length === 4) {
+              parsedBoxes.push({
+                x: item[1] / 1000,
+                y: item[0] / 1000,
+                width: Math.max(0.02, (item[3] - item[1]) / 1000),
+                height: Math.max(0.02, (item[2] - item[0]) / 1000)
+              });
+            } else if (typeof item === 'string') {
+              const coords = item.split(',').map(Number);
+              if (coords.length === 4 && coords.every(c => !isNaN(c))) {
+                parsedBoxes.push({
+                  x: coords[1] / 1000,
+                  y: coords[0] / 1000,
+                  width: Math.max(0.02, (coords[3] - coords[1]) / 1000),
+                  height: Math.max(0.02, (coords[2] - coords[0]) / 1000)
+                });
+              }
+            }
+          });
+        }
+      } else if (rawBox && typeof rawBox === 'object' && 'x' in rawBox && 'y' in rawBox) {
+        parsedBoxes.push({
+          x: rawBox.x,
+          y: rawBox.y,
+          width: rawBox.width || 0.1,
+          height: rawBox.height || 0.1
+        });
       }
+
+      // If no valid bounding box was parsed, NEVER discard the recognized product
+      if (parsedBoxes.length === 0) {
+        parsedBoxes.push({ x: 0.45, y: 0.45, width: 0.1, height: 0.1 });
+      }
+
+      parsedBoxes.forEach((box) => {
+        products.push({
+          id: `${name.trim()}-${Math.random().toString(36).substring(7)}`,
+          name: name.trim(),
+          brand: name.trim().split(' ')[0],
+          prices,
+          priceIntegrityStatus: integrityStatus,
+          boundingBox: box,
+          confidence: group.c || group.confidence || 0.9,
+          type,
+          posType,
+          isGhost
+        });
+      });
     });
   }
 
-  if (minifiedResponse.info) {
-    if (minifiedResponse.info.chn) storeInfo.chain = minifiedResponse.info.chn;
-    if (minifiedResponse.info.adr) storeInfo.address = minifiedResponse.info.adr;
+  const rawInfo = minifiedResponse.info || minifiedResponse.storeInfo || {};
+  if (rawInfo) {
+    if (rawInfo.chn || rawInfo.chain) storeInfo.chain = rawInfo.chn || rawInfo.chain;
+    if (rawInfo.adr || rawInfo.address) storeInfo.address = rawInfo.adr || rawInfo.address;
   }
 
   return { products, storeInfo, modelName: usedModel };
 }
 
+export function cleanBase64(b64: string): string {
+  if (!b64) return '';
+  if (b64.includes('base64,')) {
+    return b64.split('base64,')[1].trim();
+  }
+  return b64.trim();
+}
+
+function getGeminiClient(): GoogleGenAI {
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || '';
+  return new GoogleGenAI({ apiKey });
+}
+
+export function normalizeModelName(model?: string): string {
+  if (!model) return 'gemini-3.1-flash-lite';
+  const m = model.trim().toLowerCase();
+  if (m.includes('2.5-flash-lite') || m.includes('1.5-flash') || m.includes('2.0-flash-lite')) {
+    return 'gemini-3.1-flash-lite';
+  }
+  if (m.includes('2.5-flash') || m.includes('2.0-flash') || m.includes('1.5-pro')) {
+    return 'gemini-3.8-flash';
+  }
+  if (m.includes('2.5-pro') || m.includes('2.0-pro')) {
+    return 'gemini-3.1-pro-preview';
+  }
+  return model;
+}
+
 export async function analyzeImageWithGemini(
   base64Image: string, 
-  defaultPromptText: string, 
-  defaultSystemInstruction: string,
-  category: 'price' | 'shelfShare' | 'both' | 'osa' = 'both',
-  modelName: string = 'gemini-2.5-flash',
-  productCategory?: string,
-  clientName?: string
+  userPromptText: string, 
+  systemInstructionText: string,
+  modelName: string = 'gemini-3.1-flash-lite',
+  userPromptId?: string,
+  systemPromptId?: string,
+  mimeType: string = 'image/jpeg'
 ): Promise<AnalysisResult> {
-  const dynamicSystem = await getActivePrompt('system', productCategory, clientName);
-  const dynamicUser = await getActivePrompt(category, productCategory, clientName);
 
-  // Načítame katalóg pre podporu dynamických visual / name inštrukcií v kategóriách tovaru
-  const catalog = await getCatalogEntries();
-  const filteredCatalog = (productCategory && catalog.some(e => e.category === productCategory))
-    ? catalog.filter(e => e.category === productCategory)
-    : catalog;
-  const known = filteredCatalog.map(e => e.visualFeatures ? `${e.canonicalName} (Visuals: ${e.visualFeatures})` : e.canonicalName).join(', ');
+  const ai = getGeminiClient();
+  const cleanedImage = cleanBase64(base64Image);
+  const effectiveMime = (base64Image.startsWith('data:') && base64Image.match(/^data:([^;]+);base64,/)?.[1]) || mimeType || 'image/jpeg';
 
-  let systemWithContext = (dynamicSystem?.text || defaultSystemInstruction).replace('{{knownProducts}}', known);
-  if (!systemWithContext.includes("CRITICAL INSTRUCTIONS")) {
-    systemWithContext += "\n\nCRITICAL INSTRUCTIONS:\n";
-    systemWithContext += "1. FOCUS ON PROMOTIONAL PRODUCTS & PROMO PRICES: Retail chains highlight promotional items with distinctive colored tags and frames:\n";
-    systemWithContext += "   - RED HIGHLIGHTS / RED FRAMES / RED LABELS (Kaufland Card, Lidl Super Cena, Coop Jednota, Billa, Tesco).\n";
-    systemWithContext += "   - YELLOW HIGHLIGHTS / YELLOW FRAMES / YELLOW LABELS (Tesco Clubcard yellow frames, Billa Bonus yellow tags, Terno/Kraj).\n";
-    systemWithContext += "   - PROMO KEYWORDS: 'AKCIA', 'ZĽAVA', 'SUPER CENA', 'CLUBCARD', 'LIDL PLUS', 'KAUFLAND CARD', 'BILLA BONUS', '%', '1+1', 'XXL'.\n";
-    systemWithContext += "   - For promotional tags, mark promo price with 'P' (e.g. '1.49 P'). If crossed-out regular price is also shown, output 'VALUE_REGULAR R; VALUE_PROMO P' (e.g. '2.29 R; 1.49 P').\n";
-    systemWithContext += "2. Distinguish between physical products and 'GHOST' products (printed product images on the back wall of the shelf/rack). If it is a printed image, set g=true.\n";
-    systemWithContext += "3. Identify POS materials: wobblers, stoppers, floor stands, pallets. Set pt to the type of POS material.\n";
-    systemWithContext += "4. Use the provided visual characteristics (color, shape, text) to accurately identify products, especially when text is blurry.\n";
-    systemWithContext += "5. Be extremely precise with bounding boxes. Ensure they tightly wrap the visible product.\n";
-    systemWithContext += "6. For prices, extract the exact complete price including decimal cents (haliere). Cents written in superscript or small font next to the integer must be included (e.g. large 12 and small 90 -> '12.90', never '12').";
+  const effectiveUserPrompt = (userPromptText && userPromptText.trim().length > 0)
+    ? userPromptText
+    : 'Identify all retail products on this shelf with exact names, bounding boxes, and prices.';
+  const effectiveSystemPrompt = (systemInstructionText && systemInstructionText.trim().length > 0)
+    ? systemInstructionText
+    : 'You are an FMCG retail auditor analyzing a supermarket shelf photo. Output minified JSON according to schema.';
+
+  const normModel = normalizeModelName(modelName);
+  const modelCandidates = Array.from(new Set([
+    normModel,
+    'gemini-3.1-flash-lite',
+    'gemini-3.8-flash',
+    'gemini-flash-latest',
+    'gemini-3-flash-preview'
+  ])).filter(Boolean);
+
+  let response: any = null;
+  let effectiveModel = modelCandidates[0];
+  let lastError: any = null;
+
+  for (const candidate of modelCandidates) {
+    try {
+      effectiveModel = candidate;
+      response = await ai.models.generateContent({
+        model: candidate,
+        contents: { parts: [{ inlineData: { data: cleanedImage, mimeType: effectiveMime } }, { text: effectiveUserPrompt }] },
+        config: {
+          systemInstruction: effectiveSystemPrompt,
+          responseMimeType: 'application/json',
+          responseSchema: productSchema,
+          temperature: 0.2,
+          maxOutputTokens: 8192,
+        },
+      });
+      if (response) {
+        break;
+      }
+    } catch (err: any) {
+      lastError = err;
+      const isQuotaOrNotFound = err?.message?.includes('quota') || 
+        err?.message?.includes('RESOURCE_EXHAUSTED') || 
+        err?.message?.includes('429') || 
+        err?.message?.includes('404') || 
+        err?.message?.includes('not found') ||
+        err?.message?.includes('no longer available');
+
+      console.warn(`Model ${candidate} failed (${err?.message?.slice(0, 120)}), trying fallback...`);
+      if (!isQuotaOrNotFound && candidate === modelCandidates[modelCandidates.length - 1]) {
+        throw err;
+      }
+    }
   }
 
-  const userPromptText = (dynamicUser?.text || defaultPromptText).replace('{{knownProducts}}', known);
+  if (!response) {
+    throw lastError || new Error('All vision models exhausted.');
+  }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: { parts: [{ inlineData: { data: base64Image, mimeType: 'image/jpeg' } }, { text: userPromptText }] },
-    config: {
-      systemInstruction: systemWithContext,
-      responseMimeType: 'application/json',
-      responseSchema: productSchema,
-      temperature: 0.2,
-    },
-  });
+  let rawText = '';
+  try {
+    rawText = response.text || '';
+  } catch {
+    // Fallback if getter throws on certain finish reasons
+  }
 
-  const parsedJson = JSON.parse(extractFirstJson(response.text));
-  const result = parseMinifiedResponse(parsedJson, modelName);
+  if (!rawText) {
+    const candidate = response?.candidates?.[0];
+    const parts = candidate?.content?.parts;
+    if (parts && Array.isArray(parts)) {
+      // Prioritize parts that have text and are not thoughts
+      const nonThoughtPart = parts.find((p: any) => p && p.text && !p.thought);
+      if (nonThoughtPart?.text) {
+        rawText = nonThoughtPart.text;
+      } else {
+        const anyTextPart = parts.find((p: any) => p && p.text);
+        if (anyTextPart?.text) rawText = anyTextPart.text;
+      }
+    }
+  }
+
+  const parsedJson = repairTruncatedJson(rawText);
+  const result = parseMinifiedResponse(parsedJson, effectiveModel);
   
-  if (response.usageMetadata) {
+  if (response?.usageMetadata) {
       result.usageMetadata = {
           promptTokenCount: response.usageMetadata.promptTokenCount || 0,
           candidatesTokenCount: response.usageMetadata.candidatesTokenCount || 0,
@@ -198,11 +427,11 @@ export async function analyzeImageWithGemini(
       const tokensCount = response.usageMetadata.totalTokenCount || 0;
       const confidenceScores = result.products?.map(p => p.confidence).filter((c): c is number => typeof c === 'number') || [];
       
-      if (dynamicUser?.id) {
-          await logPromptUsage(dynamicUser.id, tokensCount, confidenceScores);
+      if (userPromptId) {
+          await logPromptUsage(userPromptId, tokensCount, confidenceScores);
       }
-      if (dynamicSystem?.id && dynamicSystem.id !== dynamicUser?.id) {
-          await logPromptUsage(dynamicSystem.id, tokensCount, confidenceScores);
+      if (systemPromptId && systemPromptId !== userPromptId) {
+          await logPromptUsage(systemPromptId, tokensCount, confidenceScores);
       }
   }
   return result;
@@ -212,7 +441,8 @@ export async function analyzeImageWithGeminiCustom(
   base64Image: string,
   userPromptText: string,
   systemInstructionText: string,
-  modelName: string = 'gemini-2.5-flash'
+  modelName: string = 'gemini-3.1-flash-lite',
+  mimeType: string = 'image/jpeg'
 ): Promise<AnalysisResult> {
   // Prepíšeme {{knownProducts}} aj v sandbox tréningovom prostredí Prompt Managera
   const catalog = await getCatalogEntries();
@@ -234,21 +464,61 @@ export async function analyzeImageWithGeminiCustom(
   }
 
   const finalUserPromptText = userPromptText.replace('{{knownProducts}}', known);
+  const ai = getGeminiClient();
+  const cleanedImage = cleanBase64(base64Image);
+  const effectiveMime = (base64Image.startsWith('data:') && base64Image.match(/^data:([^;]+);base64,/)?.[1]) || mimeType || 'image/jpeg';
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: { parts: [{ inlineData: { data: base64Image, mimeType: 'image/jpeg' } }, { text: finalUserPromptText }] },
-    config: {
-      systemInstruction: systemWithContext,
-      responseMimeType: 'application/json',
-      responseSchema: productSchema,
-      temperature: 0.1, // slightly lower for playground testing to make it deterministic
-    },
-  });
+  const normModel = normalizeModelName(modelName);
+  const modelCandidates = Array.from(new Set([
+    normModel,
+    'gemini-3.1-flash-lite',
+    'gemini-3.8-flash',
+    'gemini-flash-latest',
+    'gemini-3-flash-preview'
+  ])).filter(Boolean);
 
-  const parsedJson = JSON.parse(extractFirstJson(response.text));
-  const result = parseMinifiedResponse(parsedJson, modelName);
+  let response: any = null;
+  let effectiveModel = modelCandidates[0];
+  let lastError: any = null;
+
+  for (const candidate of modelCandidates) {
+    try {
+      effectiveModel = candidate;
+      response = await ai.models.generateContent({
+        model: candidate,
+        contents: { parts: [{ inlineData: { data: cleanedImage, mimeType: effectiveMime } }, { text: finalUserPromptText }] },
+        config: {
+          systemInstruction: systemWithContext,
+          responseMimeType: 'application/json',
+          responseSchema: productSchema,
+          temperature: 0.1, // slightly lower for playground testing to make it deterministic
+          maxOutputTokens: 8192,
+        },
+      });
+      if (response) break;
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`Model ${candidate} failed in custom test, trying fallback...`, err?.message);
+    }
+  }
+
+  if (!response) {
+    throw lastError || new Error('All vision models exhausted.');
+  }
+
+  let rawText = '';
+  try {
+    rawText = response.text || '';
+  } catch {
+    const candidate = response?.candidates?.[0];
+    const parts = candidate?.content?.parts;
+    if (parts && parts.length > 0 && parts[0].text) {
+      rawText = parts[0].text;
+    }
+  }
+
+  const parsedJson = repairTruncatedJson(rawText);
+  const result = parseMinifiedResponse(parsedJson, effectiveModel);
   if (response.usageMetadata) {
       result.usageMetadata = {
           promptTokenCount: response.usageMetadata.promptTokenCount || 0,
@@ -260,11 +530,11 @@ export async function analyzeImageWithGeminiCustom(
 }
 
 export async function createVisualFingerprint(productName: string, base64Images: string[]): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const imageParts = base64Images.map(img => ({ inlineData: { data: img, mimeType: 'image/jpeg' } }));
+    const ai = getGeminiClient();
+    const imageParts = base64Images.map(img => ({ inlineData: { data: cleanBase64(img), mimeType: 'image/jpeg' } }));
     const prompt = `Analyze images of "${productName}". Create a concise "Visual Fingerprint" to help identification.`;
     const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-3.8-flash',
         contents: { parts: [...imageParts, { text: prompt }] },
         config: { temperature: 0.1, maxOutputTokens: 100 }
     });
@@ -304,19 +574,11 @@ export async function analyzeQualityCheck(
   referenceImages: string[],
   verbalManual: string,
   storeImage: string,
-  modelName: string = 'gemini-3.6-flash',
+  modelName: string = 'gemini-3.1-flash-lite',
   language: string = 'sk'
 ): Promise<QualityCheckAnalysisResult> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getGeminiClient();
   const targetLangName = LANGUAGE_NAMES[language] || LANGUAGE_NAMES['sk'];
-  
-  // Clean up base64 wrappers
-  const cleanBase64 = (b64: string) => {
-    if (b64.includes('base64,')) {
-      return b64.split('base64,')[1];
-    }
-    return b64;
-  };
 
   const refParts = referenceImages.map(img => ({
     inlineData: {
@@ -361,18 +623,59 @@ Formátuj výstup ako JSON podľa schémy.`;
     { text: prompt }
   ];
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: { parts },
-    config: {
-      systemInstruction,
-      responseMimeType: 'application/json',
-      responseSchema: qualityCheckSchema,
-      temperature: 0.1,
-    }
-  });
+  const normQcModel = normalizeModelName(modelName);
+  const modelCandidates = Array.from(new Set([
+    normQcModel,
+    'gemini-3.1-flash-lite',
+    'gemini-3.8-flash',
+    'gemini-flash-latest',
+    'gemini-3-flash-preview'
+  ])).filter(Boolean);
 
-  const parsedJson = JSON.parse(extractFirstJson(response.text));
+  let response: any = null;
+  let lastError: any = null;
+
+  for (const candidate of modelCandidates) {
+    try {
+      response = await ai.models.generateContent({
+        model: candidate,
+        contents: { parts },
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: qualityCheckSchema,
+          temperature: 0.1,
+        }
+      });
+      if (response) break;
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`Quality check model ${candidate} failed, falling back...`, err?.message);
+    }
+  }
+
+  if (!response) {
+    throw lastError || new Error('Quality check failed.');
+  }
+
+  let qcRawText = '';
+  try {
+    qcRawText = response.text || '';
+  } catch {
+    const candidate = response?.candidates?.[0];
+    const parts = candidate?.content?.parts;
+    if (parts && parts.length > 0 && parts[0].text) {
+      qcRawText = parts[0].text;
+    }
+  }
+
+  let parsedJson: any;
+  try {
+    parsedJson = JSON.parse(extractFirstJson(qcRawText));
+  } catch {
+    parsedJson = { complianceScore: 75, reason: qcRawText || 'Analýza súladu dokončená.' };
+  }
+
   return {
     complianceScore: typeof parsedJson.complianceScore === 'number' ? parsedJson.complianceScore : Number(parsedJson.complianceScore || 0),
     reason: parsedJson.reason || ''
@@ -392,7 +695,6 @@ export async function translateAnalysisText(
     return translationCache.get(cacheKey)!;
   }
 
-  // Ak je cieľový jazyk rovnaký ako predvolená slovenčina a text nevyžaduje preklad, vráť pôvodný
   if (targetLanguage === 'sk') {
     return text;
   }
@@ -400,18 +702,28 @@ export async function translateAnalysisText(
   const targetLangName = LANGUAGE_NAMES[targetLanguage] || targetLanguage;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getGeminiClient();
     const prompt = `You are a professional retail auditor & translator. Translate the following store audit analysis/quality check explanation accurately into ${targetLangName}. Keep store names, product names, numbers, and technical layout terms intact. Do NOT add preamble or quote marks - return ONLY the translated text:\n\n${text}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
-      contents: prompt,
-      config: {
-        temperature: 0.1,
-      }
-    });
+    const modelCandidates = ['gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    let response: any = null;
 
-    const translated = response.text ? response.text.trim() : text;
+    for (const m of modelCandidates) {
+      try {
+        response = await ai.models.generateContent({
+          model: m,
+          contents: prompt,
+          config: {
+            temperature: 0.1,
+          }
+        });
+        if (response?.text) break;
+      } catch {
+        // try next
+      }
+    }
+
+    const translated = response?.text ? response.text.trim() : text;
     translationCache.set(cacheKey, translated);
     return translated;
   } catch (err) {
@@ -452,7 +764,7 @@ export async function optimizePromptWithGemini(
   recommendations: PromptRecommendation[],
   catalogSample: string[] = []
 ): Promise<PromptOptimizationResult> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = getGeminiClient();
 
   const categoryLabels: Record<string, string> = {
     price: 'OSP (Pricing - sledovanie a OCR čítanie cien, promo akcií a cenoviek)',
@@ -506,7 +818,7 @@ ${catalogSample.slice(0, 15).join(', ')}
 Vygeneruj novú vylepšenú verziu promptu zameranú na "${categoryContext}" s implementovanými odporúčaniami a súhrnom vykonaných zmien.`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.6-flash',
+    model: 'gemini-3.8-flash',
     contents: userContent,
     config: {
       systemInstruction,

@@ -117,12 +117,12 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                 const inventory = storeInventory.get(uniqueKey)!;
                 img.analysisResult.products.forEach(p => {
                     // Update total store facings
-                    if (p.type === 'product' && !p.isGhost) {
+                    if (p.type === 'product' && !p.isGhost && !p.isDiscarded) {
                         inventory.totalFacings++;
                     }
 
-                    // Berieme len produkty s aspoň 70% istotou pre OSA report
-                    if (p.confidence < 0.7) return;
+                    // Berieme len produkty s aspoň 70% istotou pre OSA report (vynechávame vyradené)
+                    if (p.isDiscarded || p.confidence < 0.7) return;
                     
                     const matchedName = findBestMatch(p.name, selectedProducts);
                     if (matchedName) {
@@ -152,9 +152,11 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
 
                     const inventory = storeInventory.get(uniqueKey)!;
                     img.analysisResult.products.forEach(p => {
-                        if (p.type === 'product' && !p.isGhost) {
+                        if (p.type === 'product' && !p.isGhost && !p.isDiscarded) {
                             inventory.totalFacings++;
                         }
+
+                        if (p.isDiscarded) return;
 
                         const matchedName = findBestMatch(p.name, selectedProducts);
                         if (matchedName) {
@@ -375,21 +377,21 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
     };
 
     return (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 h-full flex flex-col max-w-[98vw] mx-auto animate-fade-in">
+        <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800 h-full flex flex-col max-w-[98vw] mx-auto animate-fade-in">
              {/* Save Modal */}
             {isSaveModalOpen && (
                 <div className="fixed inset-0 bg-gray-800/80 flex items-center justify-center z-50 p-4">
-                     <div className="bg-white rounded-3xl shadow-xl w-full max-w-md p-8 border border-gray-100">
+                     <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl w-full max-w-md p-8 border border-gray-100 dark:border-zinc-800">
                         <h3 className="text-xl font-black mb-6 uppercase tracking-tight">{t('saveReportTitle')}</h3>
                         <input 
                             type="text" 
                             value={newReportName} 
                             onChange={(e) => setNewReportName(e.target.value)}
-                            className="w-full bg-gray-50 border-none rounded-2xl p-4 mb-6 font-bold text-sm focus:ring-2 focus:ring-lime-500"
+                            className="w-full bg-gray-50 dark:bg-zinc-800/60 border-none rounded-2xl p-4 mb-6 font-bold text-sm focus:ring-2 focus:ring-lime-500"
                             placeholder={t('reportNamePlaceholder')}
                         />
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setIsSaveModalOpen(false)} className="px-6 py-3 bg-gray-100 rounded-2xl hover:bg-gray-200 text-gray-600 font-bold transition-all">{t('cancelButton')}</button>
+                            <button onClick={() => setIsSaveModalOpen(false)} className="px-6 py-3 bg-gray-100 dark:bg-zinc-800 rounded-2xl hover:bg-gray-200 text-gray-600 dark:text-zinc-400 font-bold transition-all">{t('cancelButton')}</button>
                             <button onClick={handleSaveReport} className="px-6 py-3 bg-lime-600 text-white rounded-2xl hover:bg-lime-700 font-bold shadow-lg shadow-lime-100 transition-all">{t('save')}</button>
                         </div>
                      </div>
@@ -399,20 +401,20 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
              {/* Load Modal */}
              {isLoadModalOpen && (
                 <div className="fixed inset-0 bg-gray-800/80 flex items-center justify-center z-50 p-4">
-                     <div className="bg-white rounded-3xl shadow-xl w-full max-w-md p-8 flex flex-col max-h-[85vh] border border-gray-100">
+                     <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl w-full max-w-md p-8 flex flex-col max-h-[85vh] border border-gray-100 dark:border-zinc-800">
                         <div className="flex justify-between items-center mb-6">
                              <h3 className="text-xl font-black uppercase tracking-tight">{t('savedReports')}</h3>
-                             <button onClick={() => setIsLoadModalOpen(false)}><CloseIcon className="w-5 h-5 text-gray-500" /></button>
+                             <button onClick={() => setIsLoadModalOpen(false)}><CloseIcon className="w-5 h-5 text-gray-500 dark:text-zinc-400" /></button>
                         </div>
                         <div className="flex-grow overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                             {savedReports.length === 0 ? (
-                                <p className="text-center text-gray-400 py-10 italic font-medium">{t('noSavedReports')}</p>
+                                <p className="text-center text-gray-400 dark:text-zinc-500 py-10 italic font-medium">{t('noSavedReports')}</p>
                             ) : (
                                 savedReports.map(report => (
-                                    <div key={report.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all border border-gray-100">
+                                    <div key={report.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-800/60 rounded-2xl hover:bg-gray-100 dark:hover:bg-zinc-800 transition-all border border-gray-100 dark:border-zinc-800">
                                         <div className="min-w-0 flex-grow cursor-pointer" onClick={() => handleLoadReport(report)}>
-                                            <p className="font-bold text-gray-900 truncate">{report.name}</p>
-                                            <p className="text-[10px] text-gray-400 font-black uppercase">{new Date(report.createdAt).toLocaleDateString()} | {report.selectedProducts.length} SKU</p>
+                                            <p className="font-bold text-gray-900 dark:text-zinc-100 truncate">{report.name}</p>
+                                            <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-black uppercase">{new Date(report.createdAt).toLocaleDateString()} | {report.selectedProducts.length} SKU</p>
                                         </div>
                                         <div className="flex gap-1 ml-4">
                                             <button onClick={() => handleLoadReport(report)} className="p-2 text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors" title={t('load')}><FolderOpenIcon className="w-4 h-4" /></button>
@@ -428,7 +430,7 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
 
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
                 <div>
-                    <h2 className="text-2xl font-black text-gray-900 flex items-center gap-4 tracking-tight">
+                    <h2 className="text-2xl font-black text-gray-900 dark:text-zinc-100 flex items-center gap-4 tracking-tight">
                         <div className="p-3 bg-gradient-to-br from-lime-100 to-emerald-100 rounded-2xl shadow-sm">
                             <TableCellsIcon className="w-7 h-7 text-lime-600" />
                         </div>
@@ -442,11 +444,11 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                     )}
                 </div>
                 <div className="flex flex-wrap gap-3">
-                    <button onClick={openLoadModal} className="flex items-center gap-2 px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all active:scale-95">
+                    <button onClick={openLoadModal} className="flex items-center gap-2 px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-200 transition-all active:scale-95">
                         <FolderOpenIcon className="w-5 h-5" /> {t('savedReports')}
                     </button>
                     {selectedProducts.length > 0 && (
-                        <button onClick={openSaveModal} className="flex items-center gap-2 px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all active:scale-95">
+                        <button onClick={openSaveModal} className="flex items-center gap-2 px-6 py-3 text-xs font-black uppercase tracking-widest rounded-2xl bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-200 transition-all active:scale-95">
                             <SaveIcon className="w-5 h-5" /> {t('saveReport')}
                         </button>
                     )}
@@ -492,7 +494,7 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                 {isGuideOpen && (
                     <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4 pt-5 border-t border-blue-100/50 animate-fade-in text-left">
                         {/* Step 1 */}
-                        <div className="bg-white p-5 rounded-2xl border border-blue-50/50 shadow-xs flex flex-col justify-between">
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-blue-50/50 shadow-xs flex flex-col justify-between">
                             <div>
                                 <div className="flex justify-between items-start mb-3">
                                     <span className="text-[10px] uppercase tracking-widest bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg font-black">
@@ -508,18 +510,18 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                                         </span>
                                     )}
                                 </div>
-                                <h4 className="font-extrabold text-xs text-gray-900 mb-1">Tréning Produktov</h4>
-                                <p className="text-[11px] text-gray-500 leading-relaxed font-semibold">
+                                <h4 className="font-extrabold text-xs text-gray-900 dark:text-zinc-100 mb-1">Tréning Produktov</h4>
+                                <p className="text-[11px] text-gray-500 dark:text-zinc-400 leading-relaxed font-semibold">
                                     Pridajte položky do produktového katalógu (databáza SKU), ktoré chcete v systéme sledovať a analyzovať na policiach.
                                 </p>
                             </div>
-                            <div className="mt-4 pt-2.5 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase">
+                            <div className="mt-4 pt-2.5 border-t border-gray-50 text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase">
                                 Stav: <span className={allCatalogProducts.length > 0 ? "text-green-600 font-extrabold" : "text-amber-600 font-extrabold"}>{allCatalogProducts.length} SKU vytvorených</span>
                             </div>
                         </div>
 
                         {/* Step 2 */}
-                        <div className="bg-white p-5 rounded-2xl border border-blue-50/50 shadow-xs flex flex-col justify-between">
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-blue-50/50 shadow-xs flex flex-col justify-between">
                             <div>
                                 <div className="flex justify-between items-start mb-3">
                                     <span className="text-[10px] uppercase tracking-widest bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg font-black">
@@ -535,18 +537,18 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                                         </span>
                                     )}
                                 </div>
-                                <h4 className="font-extrabold text-xs text-gray-900 mb-1">Vytvorenie Predajní</h4>
+                                <h4 className="font-extrabold text-xs text-gray-900 dark:text-zinc-100 mb-1">Vytvorenie Predajní</h4>
                                 <p className="text-[11px] text-gray-550 leading-relaxed font-semibold">
-                                    V sekcii <strong className="text-gray-900">Predajne</strong> si nadefinujte obchody. Každý regálový audit musí byť priradený ku konkrétnej lokácii pre korektný výpočet.
+                                    V sekcii <strong className="text-gray-900 dark:text-zinc-100">Predajne</strong> si nadefinujte obchody. Každý regálový audit musí byť priradený ku konkrétnej lokácii pre korektný výpočet.
                                 </p>
                             </div>
-                            <div className="mt-4 pt-2.5 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase">
+                            <div className="mt-4 pt-2.5 border-t border-gray-50 text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase">
                                 Stav: <span className={storesCount > 0 ? "text-green-600 font-extrabold" : "text-amber-600 font-extrabold"}>{storesCount} predajní v DB</span>
                             </div>
                         </div>
 
                         {/* Step 3 */}
-                        <div className="bg-white p-5 rounded-2xl border border-blue-50/50 shadow-xs flex flex-col justify-between">
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-blue-50/50 shadow-xs flex flex-col justify-between">
                             <div>
                                 <div className="flex justify-between items-start mb-3">
                                     <span className="text-[10px] uppercase tracking-widest bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg font-black">
@@ -562,18 +564,18 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                                         </span>
                                     )}
                                 </div>
-                                <h4 className="font-extrabold text-xs text-gray-900 mb-1">Skenovanie OSA Auditu</h4>
-                                <p className="text-[11px] text-gray-500 leading-relaxed font-semibold">
-                                    Spusťte <strong className="text-gray-900">Novú analýzu</strong>, zvoľte režim <strong className="text-gray-900">OSA (Availability)</strong>. Vyberte priradenú predajňu a nahrávajte fotky celého regálu.
+                                <h4 className="font-extrabold text-xs text-gray-900 dark:text-zinc-100 mb-1">Skenovanie OSA Auditu</h4>
+                                <p className="text-[11px] text-gray-500 dark:text-zinc-400 leading-relaxed font-semibold">
+                                    Spusťte <strong className="text-gray-900 dark:text-zinc-100">Novú analýzu</strong>, zvoľte režim <strong className="text-gray-900 dark:text-zinc-100">OSA (Availability)</strong>. Vyberte priradenú predajňu a nahrávajte fotky celého regálu.
                                 </p>
                             </div>
-                            <div className="mt-4 pt-2.5 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase">
+                            <div className="mt-4 pt-2.5 border-t border-gray-50 text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase">
                                 Stav: <span className={(analysesCount > 0 || successfulActiveCount > 0) ? "text-green-600 font-extrabold" : "text-amber-600 font-extrabold"}>{analysesCount + successfulActiveCount} analýz celkovo</span>
                             </div>
                         </div>
 
                         {/* Step 4 */}
-                        <div className="bg-white p-5 rounded-2xl border border-blue-50/50 shadow-xs flex flex-col justify-between">
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-blue-50/50 shadow-xs flex flex-col justify-between">
                             <div>
                                 <div className="flex justify-between items-start mb-3">
                                     <span className="text-[10px] uppercase tracking-widest bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg font-black">
@@ -584,17 +586,17 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                                             <Check className="w-3 h-3 stroke-[3]" /> Sledujete
                                         </span>
                                     ) : (
-                                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-gray-400 bg-gray-50 px-2 py-0.5 rounded-lg">
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-gray-400 dark:text-zinc-500 bg-gray-50 dark:bg-zinc-800/60 px-2 py-0.5 rounded-lg">
                                             Výber
                                         </span>
                                     )}
                                 </div>
-                                <h4 className="font-extrabold text-xs text-gray-900 mb-1">Voľba SKU & Report</h4>
+                                <h4 className="font-extrabold text-xs text-gray-900 dark:text-zinc-100 mb-1">Voľba SKU & Report</h4>
                                 <p className="text-[11px] text-gray-550 leading-relaxed font-semibold">
                                     Nižšie označte vybrané SKU, ktoré chcete porovnať. Systém automaticky zostaví maticu výskytu ("ÁNO" vs. "VÝPADOK") a spočíta plnenie.
                                 </p>
                             </div>
-                            <div className="mt-4 pt-2.5 border-t border-gray-50 text-[10px] font-black text-gray-400 uppercase">
+                            <div className="mt-4 pt-2.5 border-t border-gray-50 text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase">
                                 Výber: <span className={selectedProducts.length > 0 ? "text-green-600 font-extrabold" : "text-gray-400 font-extrabold"}>{selectedProducts.length} aktívnych SKU</span>
                             </div>
                         </div>
@@ -622,7 +624,7 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                     </div>
 
                     {/* Card 2: Najhorší produkt (Most OOS) */}
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs flex flex-col justify-between">
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
                         <div className="flex justify-between items-start">
                             <span className="text-xs font-black uppercase tracking-widest text-red-500 flex items-center gap-1.5">
                                 <AlertTriangle className="w-4 h-4 text-red-500 animate-pulse" /> Výpadok (OOS Alert)
@@ -632,20 +634,20 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                             </div>
                         </div>
                         <div className="mt-4">
-                            <span className="text-lg font-black text-gray-900 block truncate" title={osaMetrics.worstProduct?.name || 'Všetko OK'}>
+                            <span className="text-lg font-black text-gray-900 dark:text-zinc-100 block truncate" title={osaMetrics.worstProduct?.name || 'Všetko OK'}>
                                 {osaMetrics.worstProduct ? osaMetrics.worstProduct.name : 'Všetky SKU sú prítomné'}
                             </span>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className="text-xs font-black text-red-650 px-2 py-0.5 rounded bg-rose-50 border border-rose-100 uppercase tracking-wider">
                                     Iba {osaMetrics.worstProduct?.availability}% výskyt
                                 </span>
-                                <span className="text-[11px] text-gray-400 font-bold">Najviac chýba na policiach</span>
+                                <span className="text-[11px] text-gray-400 dark:text-zinc-500 font-bold">Najviac chýba na policiach</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Card 3: Najhoršia predajňa */}
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs flex flex-col justify-between">
+                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
                         <div className="flex justify-between items-start">
                             <span className="text-xs font-black uppercase tracking-widest text-amber-500 flex items-center gap-1.5">
                                 Kľúčová náprava (Worst shop)
@@ -655,14 +657,14 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                             </div>
                         </div>
                         <div className="mt-4">
-                            <span className="text-lg font-black text-gray-900 block truncate" title={osaMetrics.worstStore?.name || 'Bez chýb'}>
+                            <span className="text-lg font-black text-gray-900 dark:text-zinc-100 block truncate" title={osaMetrics.worstStore?.name || 'Bez chýb'}>
                                 {osaMetrics.worstStore ? osaMetrics.worstStore.name : 'Všetky predajne OK'}
                             </span>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className="text-xs font-black text-amber-750 px-2 py-0.5 rounded bg-amber-50 border border-amber-100 uppercase tracking-wider">
                                     OSA: {osaMetrics.worstStore?.fulfillment}%
                                 </span>
-                                <span className="text-[11px] text-gray-400 font-bold">Najnižšie plnenie regála</span>
+                                <span className="text-[11px] text-gray-400 dark:text-zinc-500 font-bold">Najnižšie plnenie regála</span>
                             </div>
                         </div>
                     </div>
@@ -670,9 +672,9 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
             )}
 
             {/* Product Selector */}
-            <div className="bg-gray-50/50 p-8 rounded-[2rem] mb-8 border border-gray-100 shadow-inner text-left no-print">
+            <div className="bg-gray-50/50 dark:bg-zinc-900/60 p-8 rounded-[2rem] mb-8 border border-gray-100 dark:border-zinc-800 shadow-inner text-left no-print">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-5 border-b border-gray-200/50">
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <h3 className="text-xs font-black text-gray-400 dark:text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
                         <FunnelIcon className="w-5 h-5" /> {t('selectProducts')}
                     </h3>
                     
@@ -683,13 +685,13 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                             placeholder="Vyhľadať produkt v katalógu..."
                             value={productSearchTerm}
                             onChange={(e) => setProductSearchTerm(e.target.value)}
-                            className="w-full bg-white border border-gray-200 rounded-xl py-2 pl-9 pr-4 text-xs font-bold text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent transition-all"
+                            className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2 pl-9 pr-4 text-xs font-bold text-gray-800 dark:text-zinc-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-lime-500 focus:border-transparent transition-all"
                         />
-                        <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3" />
+                        <Search className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500 absolute left-3 top-3" />
                         {productSearchTerm && (
                             <button 
                                 onClick={() => setProductSearchTerm('')} 
-                                className="absolute right-3 top-2 text-gray-400 hover:text-gray-650 transition-colors text-[10px] font-bold bg-gray-100 px-1.5 py-0.5 rounded-md"
+                                className="absolute right-3 top-2 text-gray-400 dark:text-zinc-500 hover:text-gray-650 transition-colors text-[10px] font-bold bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded-md"
                             >
                                 Zmazať
                             </button>
@@ -697,8 +699,8 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                     </div>
 
                     <div className="flex gap-4 self-end md:self-auto">
-                        <button onClick={selectAll} className="text-[10px] font-black text-lime-600 hover:text-lime-700 uppercase tracking-widest">{t('selectAll')}</button>
-                        <button onClick={deselectAll} className="text-[10px] font-black text-gray-400 hover:text-gray-500 uppercase tracking-widest">{t('deselectAll')}</button>
+                        <button onClick={selectAll} className="text-[10px] font-black text-lime-600 hover:text-lime-700 uppercase tracking-widest">{t('selectAll') || 'Vybrať všetko'}</button>
+                        <button onClick={deselectAll} className="text-[10px] font-black text-gray-400 dark:text-zinc-500 hover:text-gray-500 uppercase tracking-widest">{t('deselectAll') || 'Zrušiť výber'}</button>
                     </div>
                 </div>
 
@@ -719,7 +721,7 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                             </button>
                         ))}
                     {allCatalogProducts.filter(p => !productSearchTerm || p.toLowerCase().includes(productSearchTerm.toLowerCase())).length === 0 && (
-                        <p className="text-sm text-gray-400 italic py-2">
+                        <p className="text-sm text-gray-400 dark:text-zinc-500 italic py-2">
                             {allCatalogProducts.length === 0 ? t('noProductsInCatalog') : 'Žiadne produkty nezodpovedajú vyhľadávaniu'}
                         </p>
                     )}
@@ -727,15 +729,15 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
             </div>
 
             {/* Matrix Result */}
-            <div className="flex-grow bg-white rounded-[2rem] border border-gray-100 overflow-hidden shadow-sm">
+            <div className="flex-grow bg-white dark:bg-zinc-900 rounded-[2rem] border border-gray-100 dark:border-zinc-800 overflow-hidden shadow-sm">
                 {isCalculating ? (
                     <div className="flex flex-col items-center justify-center py-32">
                         <SpinnerIcon className="w-12 h-12 text-lime-500 animate-spin" />
-                        <p className="mt-6 text-sm font-black text-gray-400 uppercase tracking-widest">{t('calculating')}</p>
+                        <p className="mt-6 text-sm font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">{t('calculating')}</p>
                     </div>
                 ) : matrix && matrix.rows.length > 0 ? (
                     <div className="overflow-x-auto custom-scrollbar">
-                        <table className="min-w-full divide-y divide-gray-100 border-collapse">
+                        <table className="min-w-full divide-y divide-gray-100 dark:divide-zinc-800 border-collapse">
                             <thead className="bg-gray-900 text-white sticky top-0 z-10">
                                 <tr>
                                     <th className="px-8 py-6 text-left text-[10px] font-black uppercase tracking-widest min-w-[250px] sticky left-0 bg-gray-900 border-r border-gray-800">
@@ -751,10 +753,10 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-100">
+                            <tbody className="bg-white dark:bg-zinc-900 divide-y divide-gray-100 dark:divide-zinc-800">
                                 {matrix.rows.map((row, idx) => (
                                     <tr key={idx} className="hover:bg-lime-50/60 transition-colors group">
-                                        <td className="px-8 py-5 text-sm font-bold text-gray-900 sticky left-0 bg-white border-r border-gray-50 shadow-[4px_0_10_rgba(0,0,0,0.02)] group-hover:bg-lime-50/60 transition-colors">
+                                        <td className="px-8 py-5 text-sm font-bold text-gray-900 dark:text-zinc-100 sticky left-0 bg-white dark:bg-zinc-900 border-r border-gray-50 shadow-[4px_0_10_rgba(0,0,0,0.02)] group-hover:bg-lime-50/60 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <span className="truncate">{row.storeName}</span>
                                                 {row.storeCode && <span className="flex-shrink-0 text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded-lg font-black uppercase tracking-widest">#{row.storeCode}</span>}
@@ -771,13 +773,13 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                                     </tr>
                                 ))}
                             </tbody>
-                            <tfoot className="bg-gray-50 border-t-2 border-gray-100">
+                            <tfoot className="bg-gray-50 dark:bg-zinc-800/60 border-t-2 border-gray-100 dark:border-zinc-800">
                                 <tr>
-                                    <td className="px-8 py-6 text-[10px] uppercase font-black text-gray-400 sticky left-0 bg-gray-50 border-r border-gray-100">
+                                    <td className="px-8 py-6 text-[10px] uppercase font-black text-gray-400 dark:text-zinc-500 sticky left-0 bg-gray-50 dark:bg-zinc-800/60 border-r border-gray-100 dark:border-zinc-800">
                                         {t('distributionShare')}
                                     </td>
                                     {matrix.selectedEntities.map(p => (
-                                        <td key={p} className="px-4 py-6 text-center text-sm font-black text-lime-700 border-l border-gray-100">
+                                        <td key={p} className="px-4 py-6 text-center text-sm font-black text-lime-700 border-l border-gray-100 dark:border-zinc-800">
                                             {Math.round(matrix.columnSummaries[p])}%
                                         </td>
                                     ))}
@@ -788,10 +790,10 @@ export const DistributionPanel: React.FC<DistributionPanelProps> = ({ activeImag
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-32 text-center">
-                        <div className="p-8 bg-gray-50 rounded-full mb-6">
+                        <div className="p-8 bg-gray-50 dark:bg-zinc-800/60 rounded-full mb-6">
                             <TableCellsIcon className="w-16 h-16 text-gray-300" />
                         </div>
-                        <p className="text-gray-400 font-black uppercase tracking-widest text-sm">{t('selectProductsAndCalculate')}</p>
+                        <p className="text-gray-400 dark:text-zinc-500 font-black uppercase tracking-widest text-sm">{t('selectProductsAndCalculate')}</p>
                     </div>
                 )}
             </div>

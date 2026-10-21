@@ -7,13 +7,16 @@
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "npx tsx utils/runAllTests.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
     "chart.js": "^4.5.1",
     "dexie": "^4.2.1",
     "dexie-react-hooks": "^4.4.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.556.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

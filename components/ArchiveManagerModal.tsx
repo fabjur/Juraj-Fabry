@@ -118,28 +118,28 @@ export const ArchiveManagerModal: React.FC<ArchiveManagerModalProps> = ({
   return (
     <>
     <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-40 p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl transform transition-all flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl w-full max-w-2xl transform transition-all flex flex-col max-h-[90vh]">
+        <div className="p-6 border-b border-gray-200 dark:border-zinc-800">
           <div className="flex justify-between items-start">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2" id="modal-title">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-zinc-100 flex items-center gap-2" id="modal-title">
                 <ArchiveBoxIcon className="w-6 h-6 text-lime-600" />
                 {t('archiveManager')}
             </h2>
-            <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors" aria-label={t('close')}>
+            <button onClick={onClose} className="p-1 rounded-full text-gray-400 dark:text-zinc-500 hover:bg-gray-200 hover:text-gray-600 transition-colors" aria-label={t('close')}>
               <CloseIcon className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         <div className="p-6 space-y-4">
-            <h3 className="font-semibold text-gray-800">{t('saveCurrentAnalysis')}</h3>
+            <h3 className="font-semibold text-gray-800 dark:text-zinc-200">{t('saveCurrentAnalysis')}</h3>
             <div className="flex items-center gap-2">
                 <input
                     type="text"
                     value={newArchiveName}
                     onChange={(e) => setNewArchiveName(e.target.value)}
                     placeholder={t('analysisNamePlaceholder')}
-                    className="flex-grow block w-full rounded-md border-0 bg-white py-1.5 pl-3 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-lime-500 sm:text-sm sm:leading-6"
+                    className="flex-grow block w-full rounded-md border-0 bg-white dark:bg-zinc-900 py-1.5 pl-3 pr-3 text-gray-900 dark:text-zinc-100 ring-1 ring-inset ring-gray-300 dark:ring-zinc-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-lime-500 sm:text-sm sm:leading-6"
                     disabled={!hasDataToSave}
                 />
                 <button
@@ -153,8 +153,8 @@ export const ArchiveManagerModal: React.FC<ArchiveManagerModalProps> = ({
             </div>
         </div>
 
-        <div className="p-6 border-t border-gray-200 flex-grow overflow-y-auto">
-            <h3 className="font-semibold text-gray-800 mb-4">{t('savedAnalyses')}</h3>
+        <div className="p-6 border-t border-gray-200 dark:border-zinc-800 flex-grow overflow-y-auto">
+            <h3 className="font-semibold text-gray-800 dark:text-zinc-200 mb-4">{t('savedAnalyses')}</h3>
              {loadingError && (
                 <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-md text-sm mb-4">
                     <div className="flex items-start gap-3">
@@ -166,26 +166,26 @@ export const ArchiveManagerModal: React.FC<ArchiveManagerModalProps> = ({
             {archives.length > 0 ? (
                 <ul className="space-y-3">
                     {archives.map(archive => (
-                        <li key={archive.id} className="bg-gray-50 p-3 rounded-md flex items-center justify-between gap-4 hover:bg-gray-100 transition-colors">
+                        <li key={archive.id} className="bg-gray-50 dark:bg-zinc-800/60 p-3 rounded-md flex items-center justify-between gap-4 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
                             <div>
                                 <div className="flex items-center gap-2">
-                                    <p className="font-medium text-gray-900">{archive.name}</p>
+                                    <p className="font-medium text-gray-900 dark:text-zinc-100">{archive.name}</p>
                                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-lime-100 text-lime-800 border border-lime-200">
                                         {getAnalysisTypeLabel(archive)}
                                     </span>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">
+                                <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">
                                     {t('createdAt')}: {new Date(archive.createdAt).toLocaleString()} | {t('imageCountInArchive', { count: archive.images.length })}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                                <button onClick={() => onLoad(archive.id)} title={t('load')} className="p-2 text-gray-500 hover:text-lime-600 rounded-full hover:bg-lime-100 transition-colors">
+                                <button onClick={() => onLoad(archive.id)} title={t('load')} className="p-2 text-gray-500 dark:text-zinc-400 hover:text-lime-600 rounded-full hover:bg-lime-100 transition-colors">
                                     <FolderOpenIcon className="w-5 h-5" />
                                 </button>
-                                <button onClick={() => handleRename(archive.id, archive.name)} title={t('rename')} className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-blue-100 transition-colors">
+                                <button onClick={() => handleRename(archive.id, archive.name)} title={t('rename')} className="p-2 text-gray-500 dark:text-zinc-400 hover:text-blue-600 rounded-full hover:bg-blue-100 transition-colors">
                                     <EditIcon className="w-5 h-5" />
                                 </button>
-                                <button onClick={() => handleDelete(archive.id, archive.name)} title={t('delete')} className="p-2 text-gray-500 hover:text-red-600 rounded-full hover:bg-red-100 transition-colors">
+                                <button onClick={() => handleDelete(archive.id, archive.name)} title={t('delete')} className="p-2 text-gray-500 dark:text-zinc-400 hover:text-red-600 rounded-full hover:bg-red-100 transition-colors">
                                     <TrashIcon className="w-5 h-5" />
                                 </button>
                             </div>
@@ -193,7 +193,7 @@ export const ArchiveManagerModal: React.FC<ArchiveManagerModalProps> = ({
                     ))}
                 </ul>
             ) : (
-                !loadingError && <div className="text-center py-10 text-sm text-gray-500">{t('noSavedAnalyses')}</div>
+                !loadingError && <div className="text-center py-10 text-sm text-gray-500 dark:text-zinc-400">{t('noSavedAnalyses')}</div>
             )}
         </div>
       </div>

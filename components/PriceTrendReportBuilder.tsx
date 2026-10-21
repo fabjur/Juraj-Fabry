@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import type { StoreCentricSummary } from '../types.ts';
+import type { StoreCentricSummary, ProductInStore, PriceInfo } from '../types.ts';
 import { getProductHistory } from '../db.ts';
 import { useTranslation } from '../i18n/index.tsx';
 import { 
@@ -16,9 +16,11 @@ import {
   LineChart,
   Grid3X3,
   FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Edit as EditIcon
 } from 'lucide-react';
 import { exportToPDF } from '../utils/export.ts';
+import Chart from '../utils/chartSetup.ts';
 
 const parsePrice = (priceValue: string): number | null => {
   if (!priceValue) return null;
@@ -45,9 +47,10 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
   onZoomImage, 
   onCorrectProduct
 }) => {
-  const { t } = useTranslation();
-  // Sub-tabs: 'stores' (original view), 'products' (new unique product view), 'trends' (new interactive builder)
-  const [subTab, setSubTab] = useState<'stores' | 'products' | 'trends'>('stores');
+  const { t, language } = useTranslation();
+  // Sub-tabs: 'stores' (original view), 'products' (new unique product view)
+  // Submenu 'trends' (Trend analyzer & Report Builder) hidden per user request
+  const [subTab, setSubTab] = useState<'stores' | 'products'>('stores');
   
   const [editingProductKey, setEditingProductKey] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -72,17 +75,17 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
   const handleEditSubmit = (product: ProductInStore) => {
     if (editingName.trim() && onCorrectProduct && product.imageId) {
       const updatedPrices: PriceInfo[] = [];
-      if (editingRegular.trim()) {
-        const val = editingRegular.trim();
+      const regNum = parsePrice(editingRegular);
+      if (regNum !== null && regNum > 0) {
         updatedPrices.push({
-          value: val.includes('€') ? val : `${val} €`,
+          value: `${regNum.toFixed(2)} €`,
           type: 'REGULAR'
         });
       }
-      if (editingPromo.trim()) {
-        const val = editingPromo.trim();
+      const promoNum = parsePrice(editingPromo);
+      if (promoNum !== null && promoNum > 0) {
         updatedPrices.push({
-          value: val.includes('€') ? val : `${val} €`,
+          value: `${promoNum.toFixed(2)} €`,
           type: 'PROMO'
         });
       }
@@ -368,12 +371,12 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
             bodyFont: { family: 'Inter', size: 11 },
             callbacks: {
               label: function (context: any) {
-                const valueStr = context.parsed.y.toLocaleString('sk-SK', { style: 'currency', currency: 'EUR' });
-                const typeText = context.raw.type === 'PROMO' ? ' (Akcia)' : '';
+                const valueStr = context.parsed.y.toLocaleString(language === 'sk' ? 'sk-SK' : 'en-US', { style: 'currency', currency: 'EUR' });
+                const typeText = context.raw.type === 'PROMO' ? ` (${t('promoPriceShort') || 'Akcia'})` : '';
                 return ` ${context.dataset.label}: ${valueStr}${typeText}`;
               },
               afterLabel: function (context: any) {
-                return ` Predajňa: ${context.raw.store}`;
+                return ` ${t('colStore') || 'Predajňa'}: ${context.raw.store}`;
               }
             }
           }
@@ -399,7 +402,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
               font: { family: 'JetBrains Mono', size: 9 },
               color: '#64748b',
               callback: function (val: any) {
-                return val.toLocaleString('sk-SK') + '€';
+                return val.toLocaleString('sk-SK') + '';
               }
             }
           }
@@ -407,7 +410,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
       }
     };
 
-    chartInstanceRef.current = new (window as any).Chart(ctx, config);
+    chartInstanceRef.current = new Chart(ctx, config as any);
 
     return () => {
       if (chartInstanceRef.current) {
@@ -415,16 +418,23 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
         chartInstanceRef.current = null;
       }
     };
-  }, [subTab, selectedProducts, selectedChains, selectedMetric, compareScope, campaignPoints, productStats]);
+  }, [subTab, selectedProducts, selectedChains, selectedMetric, compareScope, campaignPoints, productStats, language, t]);
 
   // 6. CSV REPORT GENERATOR EXPORTER (SEMICOLON SEPARATED, SLOVAK EXCEL MATURED)
   const exportCsvReport = () => {
     const rows: string[][] = [];
-    rows.push(['Produkt', 'Kategória', 'Predajňa', 'Dátum merania', 'Typ ceny', 'Cena bez DPH (EUR)']);
+    rows.push([
+      t('colProductName') || 'Produkt',
+      t('colCategory') || 'Kategória',
+      t('colStore') || 'Predajňa',
+      t('colAnalysisDate') || 'Dátum merania',
+      t('priceType') || 'Typ ceny',
+      `${t('price') || 'Cena'} (EUR)`
+    ]);
 
     selectedProducts.forEach(prodName => {
       let pts: any[];
-      const category = uniqueProductsInBatch.find(p => p.name === prodName)?.category || 'Iné';
+      const category = uniqueProductsInBatch.find(p => p.name === prodName)?.category || (t('other') || 'Iné');
 
       if (compareScope === 'batch') {
         pts = productStats[prodName]?.prices.map(p => ({
@@ -459,8 +469,8 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
           prodName,
           category,
           p.store,
-          p.date.toLocaleDateString('sk-SK'),
-          p.type === 'PROMO' ? 'Akciová' : 'Bežná',
+          p.date.toLocaleDateString(language === 'sk' ? 'sk-SK' : 'en-US'),
+          p.type === 'PROMO' ? (t('promoPriceShort') || 'Akciová') : (t('regularPriceShort') || 'Bežná'),
           p.val.toFixed(2).replace('.', ',')
         ]);
       });
@@ -481,7 +491,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
 
   const exportMatrixToCsv = () => {
     const rows: string[][] = [];
-    rows.push(['Produkt', ...priceGridData.columns]);
+    rows.push([t('colProductName') || 'Produkt', ...priceGridData.columns]);
 
     priceGridData.rows.forEach(row => {
       const rowCells = [row.productName];
@@ -490,11 +500,11 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
         if (!dataCell || (dataCell.regular === null && dataCell.promo === null)) {
           rowCells.push('-');
         } else if (dataCell.promo !== null) {
-          const promoStr = `${dataCell.promo.toFixed(2).replace('.', ',')} € (Akcia)`;
-          const regStr = dataCell.regular !== null ? ` (Bežná: ${dataCell.regular.toFixed(2).replace('.', ',')} €)` : '';
+          const promoStr = `${dataCell.promo.toFixed(2).replace('.', ',')}  (${t('promoPriceShort') || 'Akcia'})`;
+          const regStr = dataCell.regular !== null ? ` (${t('regularPriceShort') || 'Bežná'}: ${dataCell.regular.toFixed(2).replace('.', ',')} )` : '';
           rowCells.push(`${promoStr}${regStr}`);
         } else {
-          rowCells.push(`${dataCell.regular!.toFixed(2).replace('.', ',')} €`);
+          rowCells.push(`${dataCell.regular!.toFixed(2).replace('.', ',')} `);
         }
       });
       rows.push(rowCells);
@@ -624,27 +634,20 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
   return (
     <div className="space-y-5">
       {/* Dynamic Sub-tab switcher panel */}
-      <div className="flex bg-slate-100 p-1 rounded-xl w-fit gap-1 no-print">
+      <div className="flex bg-zinc-100/80 p-1 rounded-xl w-fit gap-1 no-print">
         <button
           onClick={() => setSubTab('stores')}
-          className={`px-4 py-2 text-xs font-bold leading-none rounded-lg transition-all flex items-center gap-1.5 ${subTab === 'stores' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-550 hover:text-slate-900'}`}
+          className={`px-4 py-2 text-xs font-bold leading-none rounded-lg transition-all flex items-center gap-1.5 ${subTab === 'stores' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 dark:text-zinc-100 shadow-xs' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-100'}`}
         >
           <Store className="w-4 h-4" />
           {t('storeOverview')} ({storeData.length})
         </button>
         <button
           onClick={() => setSubTab('products')}
-          className={`px-4 py-2 text-xs font-bold leading-none rounded-lg transition-all flex items-center gap-1.5 ${subTab === 'products' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-550 hover:text-slate-900'}`}
+          className={`px-4 py-2 text-xs font-bold leading-none rounded-lg transition-all flex items-center gap-1.5 ${subTab === 'products' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 dark:text-zinc-100 shadow-xs' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-100'}`}
         >
           <Package className="w-4 h-4" />
           {t('productOverview')} ({uniqueProductsInBatch.length})
-        </button>
-        <button
-          onClick={() => setSubTab('trends')}
-          className={`px-4 py-2 text-xs font-bold leading-none rounded-lg transition-all flex items-center gap-1.5 ${subTab === 'trends' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-550 hover:text-slate-900'}`}
-        >
-          <TrendingUp className="w-4 h-4" />
-          {t('trendAnalyzer')}
         </button>
       </div>
 
@@ -653,10 +656,10 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
         <div className="space-y-4 max-h-[calc(100vh-420px)] overflow-y-auto pr-3 custom-scrollbar">
           {storeData.length > 0 ? storeData.map(store => {
               return (
-                <div key={store.storeName} className="bg-white rounded-2xl border border-gray-150 shadow-xs overflow-hidden hover:shadow-md transition-all">
+                <div key={store.storeName} className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 dark:text-zinc-100 shadow-xs overflow-hidden hover:shadow-md transition-all">
                   {/* Store Header */}
-                  <div className="bg-gray-55/60 px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-                    <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                  <div className="bg-zinc-50/80 px-5 py-3.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                    <h3 className="font-extrabold text-zinc-900 dark:text-zinc-100 text-sm flex items-center gap-2">
                       <span className="text-sm">🏪</span>
                       {store.storeName}
                       {store.storeCode && (
@@ -665,27 +668,35 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                         </span>
                       )}
                     </h3>
-                    <span className="text-[10px] font-bold text-gray-500 bg-white border px-2 py-1 rounded-lg">
-                      {store.products.length} {t('itemsCount')}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {store.products.find(p => p.imageUrl) && (
+                        <button
+                          type="button"
+                          onClick={() => onZoomImage(store.products.find(p => p.imageUrl)!.imageUrl!)}
+                          className="text-[10px] font-black text-lime-700 hover:text-lime-800 bg-lime-50 hover:bg-lime-100 border border-lime-200 px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5"
+                        >
+                          📷 {t('viewCameraBtn')}
+                        </button>
+                      )}
+                      <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 border px-2 py-1 rounded-lg">
+                        {store.products.length} {t('itemsCount')}
+                      </span>
+                    </div>
                   </div>
                   
                   {/* Store content list */}
-                  <div className="p-4">
-                    <div className="bg-white rounded-xl border border-slate-150 overflow-hidden shadow-2xs">
+                  <div className="bg-white dark:bg-zinc-900 overflow-x-auto">
                           <table className="w-full text-left border-collapse text-[11px] font-sans">
                             <thead>
-                              <tr className="bg-slate-50 text-[9px] font-black uppercase text-slate-500 tracking-wider border-b border-slate-150 select-none">
-                                <th className="p-1 px-3 py-1 text-left">{t('productName')}</th>
-                                <th className="p-1 px-3 py-1 text-center w-24">{t('photo')}</th>
-                                <th className="p-1 px-3 py-1 text-center w-28">{t('confidenceCol')}</th>
-                                <th className="p-1 px-3 py-1 text-center w-24">{t('quantity')}</th>
-                                <th className="p-1 px-3 py-1 text-right w-28">{t('regularPriceCol')}</th>
-                                <th className="p-1 px-3 py-1 text-right w-28">{t('promoPriceCol')}</th>
-                                {onCorrectProduct && <th className="p-1 px-3 py-1 text-center w-16">{t('editCol')}</th>}
+                              <tr className="bg-zinc-50/80 text-[9px] font-black uppercase text-zinc-500 dark:text-zinc-400 tracking-wider border-b border-zinc-100 select-none">
+                                <th className="px-4 py-2 text-left">{t('productName')}</th>
+                                <th className="px-4 py-2 text-center w-24">{t('quantity')}</th>
+                                <th className="px-4 py-2 text-right w-28">{t('regularPriceCol')}</th>
+                                <th className="px-4 py-2 text-right w-28">{t('promoPriceCol')}</th>
+                                {onCorrectProduct && <th className="px-4 py-2 text-center w-16">{t('editCol')}</th>}
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-150 text-[11px] font-medium text-slate-755">
+                            <tbody className="divide-y divide-zinc-100 text-[11px] font-medium text-zinc-700 dark:text-zinc-300">
                               {store.products.map((product, idx) => {
                                 const regularPrice = product.priceHistory.find(ph => ph.price.type?.toUpperCase() === 'REGULAR')?.price.value;
                                 const promoPrice = product.priceHistory.find(ph => ph.price.type?.toUpperCase() === 'PROMO')?.price.value;
@@ -693,30 +704,30 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
 
                                 if (isEditing) {
                                   return (
-                                    <tr key={`edit-${idx}`} className="bg-slate-50 border-y border-slate-200">
-                                      <td colSpan={onCorrectProduct ? 7 : 6} className="p-2.5">
+                                    <tr key={`edit-${idx}`} className="bg-zinc-50/80 border-y border-zinc-200 dark:border-zinc-800">
+                                      <td colSpan={onCorrectProduct ? 5 : 4} className="p-2.5">
                                         <div className="flex flex-col gap-2">
                                           <div className="flex flex-col sm:flex-row items-end gap-2">
                                             {/* Name */}
                                             <div className="flex-grow flex flex-col min-w-[150px] w-full">
-                                              <label className="text-[9px] text-gray-500 font-bold uppercase mb-0.5">{t('productName')}</label>
+                                              <label className="text-[9px] text-zinc-500 dark:text-zinc-400 font-bold uppercase mb-0.5">{t('productName')}</label>
                                               <input
                                                 type="text"
                                                 value={editingName}
                                                 onChange={(e) => setEditingName(e.target.value)}
-                                                className="bg-white border text-xs font-bold rounded px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-lime-500 font-sans w-full"
+                                                className="bg-white dark:bg-zinc-900 border text-xs font-bold rounded px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-lime-500 font-sans w-full"
                                                 autoFocus
                                               />
                                             </div>
                                             {/* Regular Price */}
                                             <div className="w-24 flex flex-col shrink-0">
-                                              <label className="text-[9px] text-gray-500 font-bold uppercase mb-0.5">{t('regularPriceCol')}</label>
+                                              <label className="text-[9px] text-zinc-500 dark:text-zinc-400 font-bold uppercase mb-0.5">{t('regularPriceCol')}</label>
                                               <input
                                                 type="text"
                                                 placeholder="1.25"
                                                 value={editingRegular}
                                                 onChange={(e) => setEditingRegular(e.target.value)}
-                                                className="bg-white border text-xs font-bold rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-lime-500 font-sans text-right"
+                                                className="bg-white dark:bg-zinc-900 border text-xs font-bold rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-lime-500 font-sans text-right"
                                               />
                                             </div>
                                             {/* Promo Price */}
@@ -727,17 +738,17 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                                 placeholder="0.99"
                                                 value={editingPromo}
                                                 onChange={(e) => setEditingPromo(e.target.value)}
-                                                className="bg-white border text-xs font-bold rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-lime-500 font-sans text-right text-red-650"
+                                                className="bg-white dark:bg-zinc-900 border text-xs font-bold rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-lime-500 font-sans text-right text-red-650"
                                               />
                                             </div>
                                             {/* Count (ks) */}
                                             <div className="w-28 flex flex-col shrink-0">
-                                              <label className="text-[9px] text-gray-500 font-bold uppercase mb-0.5">{t('countPcs')}</label>
-                                              <div className="flex items-center border rounded bg-white overflow-hidden h-6.5">
+                                              <label className="text-[9px] text-zinc-500 dark:text-zinc-400 font-bold uppercase mb-0.5">{t('countPcs')}</label>
+                                              <div className="flex items-center border rounded bg-white dark:bg-zinc-900 overflow-hidden h-6.5">
                                                 <button 
                                                   type="button"
                                                   onClick={() => setEditingCount(c => Math.max(0, c - 1))}
-                                                  className="px-2 h-full bg-slate-50 hover:bg-slate-100 text-gray-650 font-bold border-r text-xs leading-none"
+                                                  className="px-2 h-full bg-zinc-50/80 hover:bg-slate-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-bold border-r text-xs leading-none"
                                                 >-</button>
                                                 <input
                                                   type="number"
@@ -748,7 +759,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                                 <button 
                                                   type="button"
                                                   onClick={() => setEditingCount(c => c + 1)}
-                                                  className="px-2 h-full bg-slate-50 hover:bg-slate-100 text-gray-655 font-bold border-l text-xs leading-none"
+                                                  className="px-2 h-full bg-zinc-50/80 hover:bg-slate-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-bold border-l text-xs leading-none"
                                                 >+</button>
                                               </div>
                                             </div>
@@ -759,7 +770,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                             <button
                                               type="button"
                                               onClick={() => setEditingProductKey(null)}
-                                              className="px-2 py-0.5 bg-white border rounded text-[9px] font-black uppercase text-gray-500 hover:bg-gray-50"
+                                              className="px-2 py-0.5 bg-white dark:bg-zinc-900 border rounded text-[9px] font-black uppercase text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
                                             >
                                               {t('cancel')}
                                             </button>
@@ -778,11 +789,11 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                 }
 
                                 return (
-                                  <tr key={idx} className="group hover:bg-lime-50/15 transition-all text-slate-700">
+                                  <tr key={idx} className="group hover:bg-lime-50/15 transition-all text-zinc-700 dark:text-zinc-300">
                                     {/* Product Name */}
-                                    <td className="p-1 px-3 py-1 font-bold text-slate-900 truncate max-w-[150px] sm:max-w-md">
+                                    <td className="px-4 py-2 font-bold text-zinc-900 dark:text-zinc-100 truncate max-w-[150px] sm:max-w-md">
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className={product.isGhost ? 'text-slate-400 italic font-medium' : ''}>{product.name}</span>
+                                        <span className={product.isGhost ? 'text-zinc-400 italic font-medium' : ''}>{product.name}</span>
                                         {product.isGhost && (
                                           <span className="bg-amber-50 text-amber-700 text-[8px] px-1 py-0.2 rounded font-bold border border-amber-100/60 shadow-2xs">GHOST</span>
                                         )}
@@ -792,66 +803,45 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                       </div>
                                     </td>
 
-                                    {/* Photo View Link */}
-                                    <td className="p-1 px-3 py-1 text-center whitespace-nowrap">
-                                      {product.imageUrl ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => onZoomImage(product.imageUrl!)}
-                                          className="text-lime-600 hover:text-lime-700 hover:underline font-extrabold flex items-center justify-center gap-1 mx-auto"
-                                          title={t('viewPreview')}
-                                        >
-                                          <span>{t('viewCameraBtn')}</span>
-                                        </button>
-                                      ) : (
-                                        <span className="text-slate-350 italic text-[10px]">{t('noPhoto')}</span>
-                                      )}
-                                    </td>
-
-                                    {/* Confidence Level */}
-                                    <td className="p-1 px-3 py-1 text-center text-slate-500 font-bold whitespace-nowrap">
-                                      {Math.round(product.avgConfidence * 100)}%
-                                    </td>
-
                                     {/* Product count */}
-                                    <td className="p-1 px-3 py-1 text-center whitespace-nowrap">
-                                      <span className="bg-slate-100 text-slate-700 font-extrabold text-[10px] px-1.5 py-0.5 rounded">
+                                    <td className="px-4 py-2 text-center whitespace-nowrap">
+                                      <span className="bg-slate-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-extrabold text-[10px] px-1.5 py-0.5 rounded">
                                         {product.count} {t('pcs')}
                                       </span>
                                     </td>
 
                                     {/* Regular pricing */}
-                                    <td className="p-1 px-3 py-1 text-right font-mono font-bold text-slate-800 whitespace-nowrap">
+                                    <td className="px-4 py-2 text-right font-mono font-bold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
                                       {regularPrice ? (
-                                        <span className={promoPrice ? 'line-through text-slate-400 font-normal text-[10px]' : 'text-slate-905 font-extrabold'}>
+                                        <span className={promoPrice ? 'line-through text-zinc-400 font-normal text-[10px]' : 'text-slate-905 font-extrabold'}>
                                           {regularPrice}
                                         </span>
                                       ) : (
-                                        <span className="text-slate-355 italic">-</span>
+                                        <span className="text-zinc-400 italic">-</span>
                                       )}
                                     </td>
 
                                     {/* Promo pricing */}
-                                    <td className="p-1 px-3 py-1 text-right font-mono text-red-650 font-black whitespace-nowrap">
+                                    <td className="px-4 py-2 text-right font-mono text-red-650 font-black whitespace-nowrap">
                                       {promoPrice ? (
                                         <span className="bg-red-50 border border-red-100 px-1.5 py-0.5 rounded shadow-2xs animate-pulse">
                                           {promoPrice}
                                         </span>
                                       ) : (
-                                        <span className="text-slate-355 italic">-</span>
+                                        <span className="text-zinc-400 italic">-</span>
                                       )}
                                     </td>
 
                                     {/* Edit triggering actions */}
                                     {onCorrectProduct && product.imageId && (
-                                      <td className="p-1 px-3 py-1 text-center whitespace-nowrap">
+                                      <td className="px-4 py-2 text-center whitespace-nowrap">
                                         <button
                                           type="button"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleEditClick(product, store.storeName);
                                           }}
-                                          className="p-1 text-slate-400 hover:text-lime-600 hover:bg-lime-50 rounded border border-transparent hover:border-lime-200 transition-all active:scale-95"
+                                          className="p-1 text-zinc-400 hover:text-lime-600 hover:bg-lime-50 rounded border border-transparent hover:border-lime-200 transition-all active:scale-95"
                                           title={t('editProductTooltip')}
                                         >
                                           <EditIcon className="w-3.5 h-3.5" />
@@ -863,15 +853,14 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                               })}
                             </tbody>
                           </table>
-                        </div>
                   </div>
                 </div>
               );
             })
           : (
-            <div className="text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+            <div className="text-center py-16 bg-zinc-50 dark:bg-zinc-800/60 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
               <span className="text-3xl">🏪</span>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mt-3">{t('noStoresForFilter')}</p>
+              <p className="text-xs font-black text-zinc-400 uppercase tracking-widest mt-3">{t('noStoresForFilter')}</p>
             </div>
           )}
         </div>
@@ -880,21 +869,21 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
       {subTab === 'products' && (
         <div className="space-y-4 max-h-[calc(100vh-420px)] overflow-y-auto pr-3 custom-scrollbar">
           {uniqueProductsInBatch.length > 0 ? (
-            <div className="bg-white rounded-xl border border-slate-150 overflow-hidden shadow-2xs">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-100 overflow-hidden shadow-2xs">
               <table className="w-full text-left border-collapse text-[11px] font-sans">
                 <thead>
-                  <tr className="bg-slate-50 text-[9px] font-black uppercase text-slate-500 tracking-wider border-b border-slate-150 select-none">
-                    <th className="p-1 px-3 py-2 text-left">{t('productName')}</th>
-                    <th className="p-1 px-3 py-2 text-center w-24">{t('photo')}</th>
-                    <th className="p-1 px-3 py-2 text-center w-28">{t('storeCountCol')}</th>
-                    <th className="p-1 px-3 py-2 text-center w-24">{t('quantity')}</th>
-                    <th className="p-1 px-3 py-2 text-right w-24">{t('minPriceCol')}</th>
-                    <th className="p-1 px-3 py-2 text-right w-24">{t('maxPriceCol')}</th>
-                    <th className="p-1 px-3 py-2 text-right w-24">{t('avgPriceCol')}</th>
-                    <th className="p-1 px-3 py-2 text-center w-24">{t('detailsCol')}</th>
+                  <tr className="bg-zinc-50/80 text-[9px] font-black uppercase text-zinc-500 dark:text-zinc-400 tracking-wider border-b border-zinc-100 select-none">
+                    <th className="px-4 py-2 text-left">{t('productName')}</th>
+                    <th className="px-4 py-2 text-center w-24">{t('photo')}</th>
+                    <th className="px-4 py-2 text-center w-28">{t('storeCountCol')}</th>
+                    <th className="px-4 py-2 text-center w-24">{t('quantity')}</th>
+                    <th className="px-4 py-2 text-right w-24">{t('minPriceCol')}</th>
+                    <th className="px-4 py-2 text-right w-24">{t('maxPriceCol')}</th>
+                    <th className="px-4 py-2 text-right w-24">{t('avgPriceCol')}</th>
+                    <th className="px-4 py-2 text-center w-24">{t('detailsCol')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-150 text-[11px] font-medium text-slate-755">
+                <tbody className="divide-y divide-zinc-100 text-[11px] font-medium text-zinc-700 dark:text-zinc-300">
                   {uniqueProductsInBatch.map((product) => {
                     const stats = productStats[product.name];
                     const isExpanded = expandedProduct === product.name;
@@ -903,14 +892,14 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
 
                     return (
                       <React.Fragment key={product.name}>
-                        <tr className="group hover:bg-lime-50/15 transition-all text-slate-705">
+                        <tr className="group hover:bg-lime-50/15 transition-all text-zinc-700 dark:text-zinc-300">
                           {/* Product Name */}
-                          <td className="p-2.5 px-3 font-bold text-slate-900 truncate max-w-[150px] sm:max-w-md">
+                          <td className="px-4 py-2 font-bold text-zinc-900 dark:text-zinc-100 truncate max-w-[150px] sm:max-w-md">
                             {product.name}
                           </td>
 
                           {/* Photo View Link */}
-                          <td className="p-2.5 px-3 text-center whitespace-nowrap">
+                          <td className="px-4 py-2 text-center whitespace-nowrap">
                             {firstImgUrl ? (
                               <button
                                 type="button"
@@ -921,45 +910,45 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                 <span>{t('viewCameraBtn')}</span>
                               </button>
                             ) : (
-                              <span className="text-slate-355 italic text-[10px]">{t('noPhoto')}</span>
+                              <span className="text-zinc-400 italic text-[10px]">{t('noPhoto')}</span>
                             )}
                           </td>
 
                           {/* Počet predajní */}
-                          <td className="p-2.5 px-3 text-center text-slate-500 font-bold whitespace-nowrap">
+                          <td className="px-4 py-2 text-center text-zinc-500 dark:text-zinc-400 font-bold whitespace-nowrap">
                             {stats.storeCount} {t('storesCount')}
                           </td>
 
                           {/* Product count */}
-                          <td className="p-2.5 px-3 text-center whitespace-nowrap">
-                            <span className="bg-slate-100 text-slate-700 font-extrabold text-[10px] px-2 py-0.5 rounded">
+                          <td className="px-4 py-2 text-center whitespace-nowrap">
+                            <span className="bg-slate-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-extrabold text-[10px] px-2 py-0.5 rounded">
                               {stats.totalCount} {t('pcs')}
                             </span>
                           </td>
 
                           {/* MIN Pricing */}
-                          <td className="p-2.5 px-3 text-right font-mono font-bold text-slate-800 whitespace-nowrap">
-                            {stats.min !== null ? formatPrice(stats.min) : <span className="text-slate-355 italic">-</span>}
+                          <td className="px-4 py-2 text-right font-mono font-bold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
+                            {stats.min !== null ? formatPrice(stats.min) : <span className="text-zinc-400 italic">-</span>}
                           </td>
 
                           {/* MAX Pricing */}
-                          <td className="p-2.5 px-3 text-right font-mono font-bold text-slate-800 whitespace-nowrap">
-                            {stats.max !== null ? formatPrice(stats.max) : <span className="text-slate-355 italic">-</span>}
+                          <td className="px-4 py-2 text-right font-mono font-bold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
+                            {stats.max !== null ? formatPrice(stats.max) : <span className="text-zinc-400 italic">-</span>}
                           </td>
 
                           {/* Avg Pricing */}
-                          <td className="p-2.5 px-3 text-right font-mono text-emerald-600 font-black whitespace-nowrap">
+                          <td className="px-4 py-2 text-right font-mono text-emerald-600 font-black whitespace-nowrap">
                             {stats.avg !== null ? (
                               <span className="bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded shadow-2xs">
                                 {formatPrice(stats.avg)}
                               </span>
                             ) : (
-                              <span className="text-slate-355 italic">-</span>
+                              <span className="text-zinc-400 italic">-</span>
                             )}
                           </td>
 
                           {/* Expand trigger actions (Detaily) */}
-                          <td className="p-2.5 px-3 text-center whitespace-nowrap">
+                          <td className="px-4 py-2 text-center whitespace-nowrap">
                             <button
                               type="button"
                               onClick={() => {
@@ -969,9 +958,9 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                   loadSingleProductHistory(product.name);
                                 }
                               }}
-                              className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1 mx-auto transition-colors"
+                              className="px-2 py-0.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded text-[9px] font-black uppercase text-slate-600 dark:text-zinc-400 hover:bg-zinc-50/80 flex items-center justify-center gap-1 mx-auto transition-colors"
                             >
-                              {isExpanded ? <ChevronDown className="w-3 h-3 text-slate-700" /> : <ChevronRight className="w-3 h-3 text-slate-700" />}
+                              {isExpanded ? <ChevronDown className="w-3 h-3 text-zinc-700 dark:text-zinc-300" /> : <ChevronRight className="w-3 h-3 text-zinc-700 dark:text-zinc-300" />}
                               {isExpanded ? t('closeDetails') : t('detailsCol')}
                             </button>
                           </td>
@@ -979,20 +968,20 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
 
                         {/* Collapsed Section - expanded inside a full-width row */}
                         {isExpanded && (
-                          <tr className="bg-slate-50/50">
-                            <td colSpan={8} className="p-4 border-t border-b border-slate-200">
+                          <tr className="bg-zinc-50/80/50">
+                            <td colSpan={8} className="p-4 border-t border-b border-zinc-200 dark:border-zinc-800">
                               <div className="space-y-3.5">
                                 {/* Header with DB campaign wide timeline switch toggle */}
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white p-3 rounded-xl border border-slate-200">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
                                   <div>
-                                    <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                                      <Calendar className="w-4 h-4 text-slate-500" />
+                                    <p className="text-xs font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
+                                      <Calendar className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
                                       {t('productDemandHistory')}
                                     </p>
-                                    <p className="text-[10px] text-slate-400">{t('visualizePriceTimeline')}</p>
+                                    <p className="text-[10px] text-zinc-400">{t('visualizePriceTimeline')}</p>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                    <span className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
                                       {t('loadFullDbHistory')}
                                     </span>
                                     <button
@@ -1006,19 +995,19 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                       }}
                                       className={`w-11 h-6 rounded-full p-1 transition-colors leading-none duration-250 focus:outline-hidden ${fullHistoryToggle ? 'bg-lime-600' : 'bg-slate-300'}`}
                                     >
-                                      <div className={`bg-white w-4 h-4 rounded-full shadow-xs transform transition-transform duration-250 ${fullHistoryToggle ? 'translate-x-5' : 'translate-x-0'}`} />
+                                      <div className={`bg-white dark:bg-zinc-900 w-4 h-4 rounded-full shadow-xs transform transition-transform duration-250 ${fullHistoryToggle ? 'translate-x-5' : 'translate-x-0'}`} />
                                     </button>
                                   </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {/* Left: Dynamic SVG Mini TimeSeries Sparkline visualization */}
-                                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between h-48">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                  <div className="bg-white dark:bg-zinc-900 p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between h-48">
+                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 flex items-center gap-1">
                                       <TrendingUp className="w-3.5 h-3.5 text-lime-600" /> {t('priceChartTitle')}
                                     </p>
                                     
-                                    <div className="flex-1 flex items-end h-28 relative bg-slate-50/50 rounded-lg p-2 overflow-hidden border border-slate-100 border-dashed">
+                                    <div className="flex-1 flex items-end h-28 relative bg-zinc-50/80/50 rounded-lg p-2 overflow-hidden border border-slate-100 dark:border-zinc-800 border-dashed">
                                       {/* Get active points */}
                                       {(() => {
                                         const activePoints = fullHistoryToggle
@@ -1027,7 +1016,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
 
                                         if (activePoints.length === 0) {
                                           return (
-                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-400 italic">
+                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-zinc-400 italic">
                                               {loadingCampHistory[product.name] ? t('loadingDbData') : t('noPriceData')}
                                             </div>
                                           );
@@ -1070,15 +1059,15 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                                     stroke="#ffffff" 
                                                     strokeWidth="1.5"
                                                   />
-                                                  <title>{`${c.date.toLocaleDateString()}: ${c.val.toFixed(2)}€ (${c.type})`}</title>
+                                                  <title>{`${c.date.toLocaleDateString()}: ${c.val.toFixed(2)} (${c.type})`}</title>
                                                 </g>
                                               ))}
                                             </svg>
                                             
                                             {/* Labels with min and max points indicator */}
-                                            <div className="flex justify-between text-[8px] font-mono font-black text-slate-400 mt-1 uppercase border-t pt-1 border-slate-100">
+                                            <div className="flex justify-between text-[8px] font-mono font-black text-zinc-400 mt-1 uppercase border-t pt-1 border-slate-100 dark:border-zinc-800">
                                               <span>{t('fromLabel')} {sortedPoints[0].date.toLocaleDateString()}</span>
-                                              <span className="text-slate-500 font-extrabold bg-slate-100 px-1.5 rounded">{sortedPoints.length} {t('pointsCount')}</span>
+                                              <span className="text-zinc-500 dark:text-zinc-400 font-extrabold bg-slate-100 dark:bg-zinc-800 px-1.5 rounded">{sortedPoints.length} {t('pointsCount')}</span>
                                               <span>{t('toLabel')} {sortedPoints[sortedPoints.length - 1].date.toLocaleDateString()}</span>
                                             </div>
                                           </div>
@@ -1088,18 +1077,18 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                   </div>
 
                                   {/* Right: Detailed transaction / log table */}
-                                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden h-48 flex flex-col justify-between">
+                                  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden h-48 flex flex-col justify-between">
                                     <div className="overflow-y-auto flex-1 custom-scrollbar">
                                       <table className="w-full text-left border-collapse">
                                         <thead>
-                                          <tr className="bg-slate-100/80 sticky top-0 text-[8px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-150">
+                                          <tr className="bg-slate-100/80 sticky top-0 text-[8px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
                                             <th className="p-2 py-2.5">{t('storeCol')}</th>
                                             <th className="p-2">{t('dateCol')}</th>
                                             <th className="p-2 text-right">{t('regularShort')}</th>
                                             <th className="p-2 text-right">{t('promoShort')}</th>
                                           </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100 text-[10px] font-sans font-bold">
+                                        <tbody className="divide-y divide-slate-100 dark:divide-zinc-800 text-[10px] font-sans font-bold">
                                           {(() => {
                                             const list = fullHistoryToggle
                                               ? (productCampaignHistory[product.name] || []).map(p => ({
@@ -1118,7 +1107,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                             if (list.length === 0) {
                                               return (
                                                 <tr>
-                                                  <td colSpan={4} className="p-4 text-center text-slate-400 italic">
+                                                  <td colSpan={4} className="p-4 text-center text-zinc-400 italic">
                                                     {t('noPriceRecords')}
                                                   </td>
                                                 </tr>
@@ -1126,10 +1115,10 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                             }
 
                                             return list.map((item, keyIdx) => (
-                                              <tr key={keyIdx} className="hover:bg-slate-50/70 transition-colors">
-                                                <td className="p-2 truncate max-w-[110px] text-slate-800 font-extrabold">{item.store}</td>
-                                                <td className="p-2 text-slate-500 font-mono text-[9px]">{item.date.toLocaleDateString()}</td>
-                                                <td className="p-2 text-right font-mono text-slate-700">
+                                              <tr key={keyIdx} className="hover:bg-zinc-50/80/70 transition-colors">
+                                                <td className="p-2 truncate max-w-[110px] text-slate-800 dark:text-zinc-200 font-extrabold">{item.store}</td>
+                                                <td className="p-2 text-zinc-500 dark:text-zinc-400 font-mono text-[9px]">{item.date.toLocaleDateString()}</td>
+                                                <td className="p-2 text-right font-mono text-zinc-700 dark:text-zinc-300">
                                                   {item.type === 'REGULAR' ? formatPrice(item.val) : '-'}
                                                 </td>
                                                 <td className="p-2 text-right font-semibold font-mono text-red-650">
@@ -1154,9 +1143,9 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
               </table>
             </div>
           ) : (
-            <div className="text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+            <div className="text-center py-16 bg-zinc-50 dark:bg-zinc-800/60 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
               <span className="text-3xl">📦</span>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest mt-3">{t('noMatchingProducts')}</p>
+              <p className="text-xs font-black text-zinc-400 uppercase tracking-widest mt-3">{t('noMatchingProducts')}</p>
             </div>
           )}
         </div>
@@ -1167,25 +1156,25 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in max-h-[calc(100vh-420px)] overflow-y-auto pr-2 custom-scrollbar">
           
           {/* LEFT: SECTOR FILTERS & SELECTIONS (4 Columns) */}
-          <div className="lg:col-span-4 bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4 no-print">
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5 border-b pb-2">
-              <SlidersHorizontal className="w-4 h-4 text-slate-500" />
+          <div className="lg:col-span-4 bg-zinc-50/80 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-4 no-print">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-zinc-400 flex items-center gap-1.5 border-b pb-2">
+              <SlidersHorizontal className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
               {t('reportBuilderSettings')}
             </h4>
 
             {/* Scope selection toggle */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('dataBatchScope')}</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{t('dataBatchScope')}</label>
               <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => setCompareScope('batch')}
-                  className={`py-1.5 px-2.5 text-[10px] font-black uppercase tracking-wider rounded-lg border text-center transition-all ${compareScope === 'batch' ? 'bg-slate-900 border-slate-900 text-white shadow-xs' : 'bg-white border-slate-250 text-slate-700 hover:bg-slate-50'}`}
+                  className={`py-1.5 px-2.5 text-[10px] font-black uppercase tracking-wider rounded-lg border text-center transition-all ${compareScope === 'batch' ? 'bg-slate-900 border-slate-900 text-white shadow-xs' : 'bg-white dark:bg-zinc-900 border-slate-250 text-zinc-700 hover:bg-zinc-50/80'}`}
                 >
                   {t('photoBatch')}
                 </button>
                 <button
                   onClick={() => setCompareScope('campaign')}
-                  className={`py-1.5 px-2.5 text-[10px] font-black uppercase tracking-wider rounded-lg border text-center transition-all ${compareScope === 'campaign' ? 'bg-slate-900 border-slate-900 text-white shadow-xs' : 'bg-white border-slate-250 text-slate-700 hover:bg-slate-50'}`}
+                  className={`py-1.5 px-2.5 text-[10px] font-black uppercase tracking-wider rounded-lg border text-center transition-all ${compareScope === 'campaign' ? 'bg-slate-900 border-slate-900 text-white shadow-xs' : 'bg-white dark:bg-zinc-900 border-slate-250 text-zinc-700 hover:bg-zinc-50/80'}`}
                 >
                   {t('allFromDb')}
                 </button>
@@ -1194,11 +1183,11 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
 
             {/* Metric select */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('analyzedPriceType')}</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{t('analyzedPriceType')}</label>
               <select
                 value={selectedMetric}
                 onChange={(e) => setSelectedMetric(e.target.value as any)}
-                className="w-full bg-white border border-slate-250 font-bold text-xs p-2 rounded-lg text-slate-800"
+                className="w-full bg-white dark:bg-zinc-900 border border-slate-250 font-bold text-xs p-2 rounded-lg text-slate-800 dark:text-zinc-200"
               >
                 <option value="all">{t('allPricesOption')}</option>
                 <option value="regular">{t('regularPricesOnly')}</option>
@@ -1209,7 +1198,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
             {/* PRODUCT MULTI-SELECT CHECKBOXLIST SECTION */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('selectProductsLabel')} ({selectedProducts.length})</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{t('selectProductsLabel')} ({selectedProducts.length})</label>
                 {selectedProducts.length > 0 && (
                   <button 
                     onClick={() => setSelectedProducts([])} 
@@ -1222,22 +1211,22 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
 
               {/* Instant list product search bar */}
               <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-zinc-400" />
                 <input
                   type="text"
                   placeholder={t('searchInProductList')}
                   value={prodSearchTerm}
                   onChange={(e) => setProdSearchTerm(e.target.value)}
-                  className="w-full bg-white border border-slate-250 rounded-lg pl-8 p-1.5 py-1.8 text-xs font-semibold focus:outline-hidden"
+                  className="w-full bg-white dark:bg-zinc-900 border border-slate-250 rounded-lg pl-8 p-1.5 py-1.8 text-xs font-semibold focus:outline-hidden"
                 />
               </div>
 
               {/* Scrolling checkbox list */}
-              <div className="max-h-44 overflow-y-auto border border-slate-200 bg-white rounded-lg p-2.5 space-y-1.5 custom-scrollbar text-[11px] font-bold">
+              <div className="max-h-44 overflow-y-auto border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg p-2.5 space-y-1.5 custom-scrollbar text-[11px] font-bold">
                 {filteredTrendProductsList.length > 0 ? filteredTrendProductsList.map(prod => {
                   const isChecked = selectedProducts.includes(prod.name);
                   return (
-                    <label key={prod.name} className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-slate-50">
+                    <label key={prod.name} className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-zinc-50/80">
                       <input
                         type="checkbox"
                         checked={isChecked}
@@ -1250,11 +1239,11 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                         }}
                         className="rounded text-lime-600 focus:ring-lime-500 w-3.5 h-3.5"
                       />
-                      <span className="truncate text-slate-800" title={prod.name}>{prod.name}</span>
+                      <span className="truncate text-slate-800 dark:text-zinc-200" title={prod.name}>{prod.name}</span>
                     </label>
                   );
                 }) : (
-                  <div className="text-center p-4 text-slate-400 italic">{t('noMatches')}</div>
+                  <div className="text-center p-4 text-zinc-400 italic">{t('noMatches')}</div>
                 )}
               </div>
             </div>
@@ -1262,21 +1251,21 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
             {/* STORES MULTI-SELECT FILTER CHECKBOXLIST */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('selectStoresLabel')} ({selectedChains.length || t('allStoresOption')})</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{t('selectStoresLabel')} ({selectedChains.length || t('allStoresOption')})</label>
                 {selectedChains.length > 0 && (
                   <button 
                     onClick={() => setSelectedChains([])} 
-                    className="text-[9px] font-black text-slate-500 hover:underline uppercase"
+                    className="text-[9px] font-black text-zinc-500 dark:text-zinc-400 hover:underline uppercase"
                   >
                     {t('allStoresOption')}
                   </button>
                 )}
               </div>
-              <div className="max-h-24 overflow-y-auto border border-slate-200 bg-white rounded-lg p-2 space-y-1 custom-scrollbar text-[10px] font-bold">
+              <div className="max-h-24 overflow-y-auto border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg p-2 space-y-1 custom-scrollbar text-[10px] font-bold">
                 {uniqueStoreNamesFromStats.map(storeName => {
                   const isChecked = selectedChains.includes(storeName);
                   return (
-                    <label key={storeName} className="flex items-center gap-2 cursor-pointer p-0.5 rounded hover:bg-slate-50">
+                    <label key={storeName} className="flex items-center gap-2 cursor-pointer p-0.5 rounded hover:bg-zinc-50/80">
                       <input
                         type="checkbox"
                         checked={isChecked}
@@ -1287,9 +1276,9 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                             setSelectedChains(prev => [...prev, storeName]);
                           }
                         }}
-                        className="rounded text-slate-900 border-slate-300 w-3.5 h-3.5"
+                        className="rounded text-zinc-900 dark:text-zinc-100 border-slate-300 dark:border-zinc-700 w-3.5 h-3.5"
                       />
-                      <span className="truncate text-slate-700">{storeName}</span>
+                      <span className="truncate text-zinc-700 dark:text-zinc-300">{storeName}</span>
                     </label>
                   );
                 })}
@@ -1302,20 +1291,20 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
           <div className="lg:col-span-8 space-y-5">
             
             {/* Header toolbar stats */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-905 p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-905 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xs">
               <div>
-                <h3 className="text-sm font-extrabold text-slate-950 flex items-center gap-1.5">
+                <h3 className="text-sm font-extrabold text-slate-950 dark:text-zinc-100 flex items-center gap-1.5">
                   <TrendingUp className="text-lime-600 w-5 h-5" />
                   {t('outputAndReporting')}
                 </h3>
-                <p className="text-[11px] text-slate-500">{t('visualizeDeviations')}</p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{t('visualizeDeviations')}</p>
               </div>
 
               <div className="flex items-center gap-2 no-print">
                 <button
                   onClick={exportCsvReport}
                   disabled={selectedProducts.length === 0}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${(selectedProducts.length === 0) ? 'bg-slate-100 text-slate-350 cursor-not-allowed border' : 'bg-lime-600 text-white hover:bg-lime-700 shadow-md shadow-lime-200'}`}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${(selectedProducts.length === 0) ? 'bg-slate-100 text-zinc-400 cursor-not-allowed border' : 'bg-lime-600 text-white hover:bg-lime-700 shadow-md shadow-lime-200'}`}
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" />
                   {t('exportCsvReport')}
@@ -1324,35 +1313,35 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
             </div>
 
             {/* CHART CONTAINER WITH TIMELINE VISIONS */}
-            <div ref={chartContainerRef} className="bg-white p-4 rounded-2xl border border-slate-200">
+            <div ref={chartContainerRef} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 border-b pb-2 gap-2">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
                   <LineChart className="w-4 h-4 text-lime-600" />
                   {t('priceTrendChartTitle')}
                 </h4>
                 <div className="flex items-center gap-2 flex-wrap">
                   {loadingCampaignData && (
-                    <span className="text-[9px] font-bold text-slate-500 flex items-center gap-1 mr-2">
-                      <RefreshCw className="w-3 h-3 animate-spin text-slate-400" />
+                    <span className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 flex items-center gap-1 mr-2">
+                      <RefreshCw className="w-3 h-3 animate-spin text-zinc-400" />
                       {t('downloadingDb')}
                     </span>
                   )}
                   <button
                     onClick={exportChartToPng}
                     disabled={selectedProducts.length === 0}
-                    className="flex items-center gap-1 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors no-print duration-150"
+                    className="flex items-center gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-slate-600 hover:text-zinc-900 dark:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-50/80 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors no-print duration-150"
                     title={t('imagePng')}
                   >
-                    <ImageIcon className="w-3.5 h-3.5 text-slate-500" />
+                    <ImageIcon className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                     {t('imagePng')}
                   </button>
                   <button
                     onClick={exportChartToPdf}
                     disabled={selectedProducts.length === 0}
-                    className="flex items-center gap-1 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors no-print duration-150"
+                    className="flex items-center gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-slate-600 hover:text-zinc-900 dark:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-50/80 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors no-print duration-150"
                     title="PDF"
                   >
-                    <FileText className="w-3.5 h-3.5 text-slate-500" />
+                    <FileText className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                     PDF
                   </button>
                 </div>
@@ -1363,7 +1352,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                   <canvas ref={chartCanvasRef}></canvas>
                 </div>
               ) : (
-                <div className="h-64 flex flex-col items-center justify-center text-slate-400 italic text-xs bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                <div className="h-64 flex flex-col items-center justify-center text-zinc-400 italic text-xs bg-zinc-50/80/50 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">
                   <LineChart className="w-8 h-8 text-slate-300 stroke-1 mb-2" />
                   {t('selectProductToAnalyze')}
                 </div>
@@ -1371,9 +1360,9 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
             </div>
 
             {/* DYNAMIC PRICE MATRIX PIVOT ROW GRID (Store vs Product Matrix) */}
-            <div ref={matrixContainerRef} className="bg-white p-4 rounded-2xl border border-slate-200 overflow-hidden">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 border-b pb-2 border-slate-100 gap-2">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+            <div ref={matrixContainerRef} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 border-b pb-2 border-slate-100 dark:border-zinc-800 gap-2">
+                <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
                   <Grid3X3 className="w-4 h-4 text-emerald-600" />
                   {t('priceComparisonMatrixTitle')}
                 </h4>
@@ -1381,39 +1370,39 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                   <button
                     onClick={exportMatrixToCsv}
                     disabled={priceGridData.rows.length === 0}
-                    className="flex items-center gap-1 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors no-print duration-150"
+                    className="flex items-center gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-slate-600 hover:text-zinc-900 dark:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-50/80 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors no-print duration-150"
                     title={t('excelXls')}
                   >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                     {t('excelXls')}
                   </button>
                   <button
                     onClick={exportMatrixToPdf}
                     disabled={priceGridData.rows.length === 0}
-                    className="flex items-center gap-1 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors no-print duration-150"
+                    className="flex items-center gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-slate-600 hover:text-zinc-900 dark:text-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-50/80 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors no-print duration-150"
                     title="PDF"
                   >
-                    <FileText className="w-3.5 h-3.5 text-slate-500" />
+                    <FileText className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                     PDF
                   </button>
                 </div>
               </div>
 
               {priceGridData.columns.length > 0 && priceGridData.rows.length > 0 ? (
-                <div className="overflow-x-auto border border-slate-150 rounded-xl shadow-2xs custom-scrollbar">
+                <div className="overflow-x-auto border border-zinc-100 rounded-xl shadow-2xs custom-scrollbar">
                   <table className="w-full text-left border-collapse text-[10px] font-sans font-bold">
                     <thead>
-                      <tr className="bg-slate-50 text-[8px] font-black uppercase text-slate-500 tracking-widest border-b border-slate-150 divide-x divide-slate-150">
+                      <tr className="bg-zinc-50/80 text-[8px] font-black uppercase text-zinc-500 dark:text-zinc-400 tracking-widest border-b border-zinc-100 divide-x divide-zinc-100">
                         <th className="p-3">{t('productCol')}</th>
                         {priceGridData.columns.map(col => (
                           <th key={col} className="p-3 text-center min-w-[100px]" title={col}>{col}</th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-150 text-[10px] font-medium font-mono text-slate-700">
+                    <tbody className="divide-y divide-zinc-100 text-[10px] font-medium font-mono text-zinc-700 dark:text-zinc-300">
                       {priceGridData.rows.map(row => (
-                        <tr key={row.productName} className="hover:bg-slate-50/30 divide-x divide-slate-150">
-                          <td className="p-2.5 font-bold font-sans text-slate-900 bg-slate-50/20">{row.productName}</td>
+                        <tr key={row.productName} className="hover:bg-zinc-50/80/30 divide-x divide-zinc-100">
+                          <td className="p-2.5 font-bold font-sans text-zinc-900 dark:text-zinc-100 bg-zinc-50/80/20">{row.productName}</td>
                           {priceGridData.columns.map(col => {
                             const dataCell = row.stores[col];
                             if (!dataCell || (dataCell.regular === null && dataCell.promo === null)) {
@@ -1431,7 +1420,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                   {dataCell.promo !== null ? (
                                     <>
                                       {dataCell.regular !== null && (
-                                        <div className="text-[8px] text-slate-400 line-through leading-none">
+                                        <div className="text-[8px] text-zinc-400 line-through leading-none">
                                           {formatPrice(dataCell.regular)}
                                         </div>
                                       )}
@@ -1440,7 +1429,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                                       </div>
                                     </>
                                   ) : (
-                                    <div className="font-extrabold text-slate-800 leading-normal">
+                                    <div className="font-extrabold text-slate-800 dark:text-zinc-200 leading-normal">
                                       {formatPrice(dataCell.regular)}
                                     </div>
                                   )}
@@ -1454,7 +1443,7 @@ export const PriceTrendReportBuilder: React.FC<PriceTrendReportBuilderProps> = (
                   </table>
                 </div>
               ) : (
-                <div className="text-center py-8 text-xs text-slate-450 italic bg-slate-50 rounded-lg">
+                <div className="text-center py-8 text-xs text-slate-450 italic bg-zinc-50/80 rounded-lg">
                   {t('noMatrixResults')}
                 </div>
               )}

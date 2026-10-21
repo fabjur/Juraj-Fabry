@@ -33,6 +33,14 @@ export const normalizeBoundingBox = (box: BoundingBox | null | undefined): Bound
   let width = typeof box.width === 'number' && !isNaN(box.width) ? box.width : 0;
   let height = typeof box.height === 'number' && !isNaN(box.height) ? box.height : 0;
 
+  // Handle 0..1000 scale inputs (Gemini Vision native coordinate format)
+  if (x > 1.05 || y > 1.05 || width > 1.05 || height > 1.05) {
+    x = x / 1000;
+    y = y / 1000;
+    width = width / 1000;
+    height = height / 1000;
+  }
+
   // Handle negative width / height
   if (width < 0) {
     x += width;

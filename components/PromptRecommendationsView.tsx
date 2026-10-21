@@ -315,8 +315,8 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-            <Info className="w-3 h-3 text-slate-500" /> Informácia
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-800">
+            <Info className="w-3 h-3 text-slate-500 dark:text-zinc-400" /> Informácia
           </span>
         );
     }
@@ -325,24 +325,24 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
   return (
     <div className="space-y-6">
       {/* 1. HLAVNÝ ANALYTICKÝ PANEL ZDRAVIA PROMPTOV */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm relative overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-slate-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-lime-100/50 via-emerald-50/20 to-transparent rounded-full pointer-events-none -mr-20 -mt-20 blur-2xl" />
         
         <div className="relative z-10">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100 dark:border-zinc-800">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-lime-500 text-white rounded-xl shadow-md shadow-lime-500/20">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
                     AI Optimalizátor a Odporúčania pre Prompt
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-widest">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 uppercase tracking-widest">
                       Live Audit Feed
                     </span>
                   </h3>
-                  <p className="text-xs text-slate-500 font-medium">
+                  <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
                     Analýza výkonu promptov na základe {summary.totalAnalyses} auditov a {summary.totalImages} fotografií regálov ({summary.totalDetectedItems} detegovaných SKU).
                   </p>
                 </div>
@@ -353,7 +353,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
               <button
                 onClick={onRefreshAudit}
                 disabled={isLoading}
-                className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 border border-slate-200/80"
+                className="px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 border border-slate-200/80"
                 title="Prepočítať metriky zo všetkých analýz v databáze"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -392,16 +392,16 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
             </div>
 
             {/* Priemerná istota */}
-            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-center flex flex-col justify-between">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block font-mono">Priemerná istota</span>
-              <span className="text-2xl font-black text-slate-900 block my-1">{Math.round(summary.avgConfidence * 100)}%</span>
-              <span className="text-[9px] text-slate-500 font-bold block">Model Confidence</span>
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/60 text-center flex flex-col justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 block font-mono">Priemerná istota</span>
+              <span className="text-2xl font-black text-slate-900 dark:text-zinc-100 block my-1">{Math.round(summary.avgConfidence * 100)}%</span>
+              <span className="text-[9px] text-slate-500 dark:text-zinc-400 font-bold block">Model Confidence</span>
             </div>
 
             {/* Pokrytie cien & Akcie */}
-            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-center flex flex-col justify-between">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block font-mono">Ceny & Akcie</span>
-              <span className="text-2xl font-black text-slate-900 block my-1">{summary.priceDetectionRate}%</span>
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/60 text-center flex flex-col justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 block font-mono">Ceny & Akcie</span>
+              <span className="text-2xl font-black text-slate-900 dark:text-zinc-100 block my-1">{summary.priceDetectionRate}%</span>
               <span className="text-[9px] text-amber-700 bg-amber-50 rounded px-1 py-0.5 font-bold block border border-amber-200 flex items-center justify-center gap-1">
                 <Flame className="w-2.5 h-2.5 text-rose-500" />
                 {summary.regularVsPromoRatio.promo} akčných cien
@@ -409,28 +409,28 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
             </div>
 
             {/* Label Drift */}
-            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-center flex flex-col justify-between">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block font-mono">Label Drift</span>
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/60 text-center flex flex-col justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 block font-mono">Label Drift</span>
               <span className={`text-2xl font-black block my-1 ${summary.skuDriftCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
                 {summary.skuDriftCount}
               </span>
-              <span className="text-[9px] text-slate-500 font-bold block">Variácií názvov SKU</span>
+              <span className="text-[9px] text-slate-500 dark:text-zinc-400 font-bold block">Variácií názvov SKU</span>
             </div>
 
             {/* Ghost položky */}
-            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-center flex flex-col justify-between">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block font-mono">Ghost Potlač</span>
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/60 text-center flex flex-col justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 block font-mono">Ghost Potlač</span>
               <span className={`text-2xl font-black block my-1 ${summary.ghostProductRate > 3 ? 'text-rose-600' : 'text-slate-900'}`}>
                 {summary.ghostProductRate}%
               </span>
-              <span className="text-[9px] text-slate-500 font-bold block">Falošné detekcie</span>
+              <span className="text-[9px] text-slate-500 dark:text-zinc-400 font-bold block">Falošné detekcie</span>
             </div>
 
             {/* POS Materiály */}
-            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 text-center flex flex-col justify-between">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block font-mono">POS Materiály</span>
-              <span className="text-2xl font-black text-slate-900 block my-1">{summary.posMaterialCount}</span>
-              <span className="text-[9px] text-slate-500 font-bold block">Pútače a stojany</span>
+            <div className="p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/60 text-center flex flex-col justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 block font-mono">POS Materiály</span>
+              <span className="text-2xl font-black text-slate-900 dark:text-zinc-100 block my-1">{summary.posMaterialCount}</span>
+              <span className="text-[9px] text-slate-500 dark:text-zinc-400 font-bold block">Pútače a stojany</span>
             </div>
           </div>
         </div>
@@ -444,22 +444,22 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
       )}
 
       {/* 2. VYBRANÝ TYP ANALÝZY (FILTER PRE ODPORÚČANIA A AI OPTIMALIZÁTOR) */}
-      <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl p-5 border border-slate-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="p-3 rounded-2xl bg-lime-100 text-lime-700 shadow-sm">
             {React.createElement(CATEGORY_META[activeCategory]?.icon || Sparkles, { className: 'w-6 h-6' })}
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-slate-400 uppercase tracking-wider">Vybraný typ analýzy:</span>
+              <span className="text-xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Vybraný typ analýzy:</span>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-lime-600 text-white shadow-xs">
                 {CATEGORY_META[activeCategory]?.title || activeCategory}
               </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 uppercase">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 uppercase">
                 {CATEGORY_META[activeCategory]?.badge}
               </span>
             </div>
-            <p className="text-xs text-slate-600 font-medium mt-0.5">
+            <p className="text-xs text-slate-600 dark:text-zinc-400 font-medium mt-0.5">
               {CATEGORY_META[activeCategory]?.subtitle}
             </p>
           </div>
@@ -480,8 +480,8 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
                   }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                     isSelected 
-                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 scale-105' 
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-white/50 border border-transparent'
+                      ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200/80 scale-105' 
+                      : 'text-slate-500 hover:text-slate-900 hover:bg-white/50 dark:hover:bg-zinc-800/50 border border-transparent'
                   }`}
                   title={meta.title}
                 >
@@ -520,8 +520,8 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
             onClick={() => { setViewTab('active'); setSelectedCategoryFilter('all'); }}
             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 shrink-0 ${
               viewTab === 'active'
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 scale-[1.02]'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 border border-transparent'
+                ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200/80 scale-[1.02]'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:hover:bg-zinc-800/50 border border-transparent'
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-lime-600" />
@@ -537,8 +537,8 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
             onClick={() => { setViewTab('archived'); setSelectedCategoryFilter('all'); }}
             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 shrink-0 ${
               viewTab === 'archived'
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 scale-[1.02]'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 border border-transparent'
+                ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-sm border border-slate-200/80 scale-[1.02]'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:hover:bg-zinc-800/50 border border-transparent'
             }`}
           >
             <FolderArchive className="w-3.5 h-3.5 text-indigo-600" />
@@ -555,7 +555,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
             className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 shrink-0 ${
               viewTab === 'trash'
                 ? 'bg-white text-rose-700 shadow-sm border border-slate-200/80 scale-[1.02]'
-                : 'text-slate-600 hover:text-rose-700 hover:bg-white/50 border border-transparent'
+                : 'text-slate-600 hover:text-rose-700 hover:bg-white/50 dark:hover:bg-zinc-800/50 border border-transparent'
             }`}
           >
             <Trash2 className="w-3.5 h-3.5 text-rose-500" />
@@ -587,7 +587,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
               selectedCategoryFilter === 'all'
                 ? 'bg-slate-900 text-white shadow-sm'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700'
             }`}
           >
             Všetky ({currentViewRecommendations.length})
@@ -613,7 +613,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 selectedCategoryFilter === 'structure'
                   ? 'bg-lime-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700'
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5 text-lime-600" />
@@ -627,7 +627,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 selectedCategoryFilter === 'price_ocr'
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700'
               }`}
             >
               <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
@@ -641,7 +641,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 selectedCategoryFilter === 'pos_materials'
                   ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700'
               }`}
             >
               <Zap className="w-3.5 h-3.5 text-amber-500" />
@@ -655,7 +655,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 selectedCategoryFilter === 'normalization'
                   ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700'
               }`}
             >
               <Tag className="w-3.5 h-3.5 text-indigo-500" />
@@ -669,7 +669,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 selectedCategoryFilter === 'ghost_filtering'
                   ? 'bg-purple-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700'
               }`}
             >
               <Ghost className="w-3.5 h-3.5 text-purple-500" />
@@ -683,7 +683,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 selectedCategoryFilter === 'category_rules'
                   ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700'
               }`}
             >
               <Boxes className="w-3.5 h-3.5 text-amber-500" />
@@ -692,7 +692,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
           )}
         </div>
 
-        <span className="text-xs text-slate-400 font-bold">
+        <span className="text-xs text-slate-400 dark:text-zinc-500 font-bold">
           Zobrazených {filteredRecommendations.length} z {currentViewRecommendations.length} {viewTab === 'active' ? 'nerealizovaných' : viewTab === 'archived' ? 'v archíve' : 'v koši'} pre {CATEGORY_META[activeCategory]?.title.split(' ')[0]}
         </span>
       </div>
@@ -700,7 +700,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
       {/* 5. ZOZNAM ODPORÚČANÍ NA ZLEPŠENIE PROMPTU */}
       <div className="space-y-4">
         {filteredRecommendations.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 space-y-3">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-zinc-800 space-y-3">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto ${
               viewTab === 'trash' ? 'bg-rose-100 text-rose-600' : viewTab === 'archived' ? 'bg-indigo-100 text-indigo-600' : 'bg-lime-100 text-lime-600'
             }`}>
@@ -712,7 +712,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
                 <CheckCircle2 className="w-6 h-6" />
               )}
             </div>
-            <h4 className="text-base font-black text-slate-900">
+            <h4 className="text-base font-black text-slate-900 dark:text-zinc-100">
               {viewTab === 'trash' ? (
                 'Kôš je prázdny'
               ) : viewTab === 'archived' ? (
@@ -721,7 +721,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
                 `Všetky pravidlá pre ${CATEGORY_META[activeCategory]?.title} sú vyriešené`
               )}
             </h4>
-            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
               {viewTab === 'trash' ? (
                 'Nenachádzajú sa tu žiadne odmietnuté odporúčania. Návrhy môžete odmietnuť kliknutím na tlačidlo «Odmietnuť».'
               ) : viewTab === 'archived' ? (
@@ -749,7 +749,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
             return (
               <div 
                 key={rec.id}
-                className={`bg-white rounded-3xl p-6 border transition-all duration-200 shadow-sm hover:shadow-md ${
+                className={`bg-white dark:bg-zinc-900 rounded-3xl p-6 border transition-all duration-200 shadow-sm hover:shadow-md ${
                   viewTab === 'trash'
                     ? 'border-slate-200 bg-slate-50/40 opacity-80'
                     : viewTab === 'archived'
@@ -765,7 +765,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
                   <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       {getSeverityBadge(rec.severity)}
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800">
                         {rec.impact}
                       </span>
                       {viewTab === 'archived' && (
@@ -780,23 +780,23 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
                       )}
                     </div>
 
-                    <h4 className="text-base font-black text-slate-900 tracking-tight">
+                    <h4 className="text-base font-black text-slate-900 dark:text-zinc-100 tracking-tight">
                       {rec.title}
                     </h4>
 
-                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                    <p className="text-xs text-slate-600 dark:text-zinc-400 font-medium leading-relaxed">
                       {rec.description}
                     </p>
 
                     {/* Dôkaz z auditu */}
-                    <div className="inline-flex items-center gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs mt-2">
-                      <span className="font-black text-slate-500 text-[10px] uppercase tracking-wider">
+                    <div className="inline-flex items-center gap-2 p-2.5 bg-slate-50 dark:bg-zinc-800/60 rounded-xl border border-slate-200 dark:border-zinc-800 text-xs mt-2">
+                      <span className="font-black text-slate-500 dark:text-zinc-400 text-[10px] uppercase tracking-wider">
                         {rec.evidence.metric}:
                       </span>
-                      <span className="font-extrabold text-slate-900 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-xs">
+                      <span className="font-extrabold text-slate-900 dark:text-zinc-100 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs">
                         {rec.evidence.value}
                       </span>
-                      <span className="text-slate-500 text-[11px]">
+                      <span className="text-slate-500 dark:text-zinc-400 text-[11px]">
                         ({rec.evidence.detail})
                       </span>
                     </div>
@@ -804,7 +804,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
                     {/* Príklady nezhôd ak existujú */}
                     {rec.examples && rec.examples.length > 0 && (
                       <div className="pt-2 space-y-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block font-mono">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 block font-mono">
                           Identifikované odchýlky na fotografiách regálu:
                         </span>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -813,7 +813,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
                               <span className="text-rose-600 font-bold truncate max-w-[140px] sm:max-w-[180px]" title={ex.original}>
                                 ✕ {ex.original}
                               </span>
-                              <ArrowRight className="w-3 h-3 text-slate-400 shrink-0 mx-1" />
+                              <ArrowRight className="w-3 h-3 text-slate-400 dark:text-zinc-500 shrink-0 mx-1" />
                               <span className="text-lime-700 font-black truncate max-w-[140px] sm:max-w-[180px]" title={ex.canonical}>
                                 ✓ {ex.canonical}
                               </span>
@@ -849,7 +849,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
 
                           <button
                             onClick={() => handleCopy(rec.suggestedRule, rec.id)}
-                            className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 border border-slate-200/80"
+                            className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 border border-slate-200/80"
                             title="Skopírovať znenie inštrukcie do schránky"
                           >
                             {isCopied ? <Check className="w-3.5 h-3.5 text-lime-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -888,7 +888,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
 
                           <button
                             onClick={() => handleCopy(rec.suggestedRule, rec.id)}
-                            className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 border border-slate-200/80"
+                            className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 border border-slate-200/80"
                           >
                             {isCopied ? <Check className="w-3.5 h-3.5 text-lime-600" /> : <Copy className="w-3.5 h-3.5" />}
                             <span>{isCopied ? 'Skopírované' : 'Kopírovať'}</span>
@@ -916,7 +916,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
 
                         <button
                           onClick={() => handleCopy(rec.suggestedRule, rec.id)}
-                          className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 border border-slate-200/80"
+                          className="px-3 py-2 text-xs font-bold text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5 border border-slate-200/80"
                         >
                           {isCopied ? <Check className="w-3.5 h-3.5 text-lime-600" /> : <Copy className="w-3.5 h-3.5" />}
                           <span>Kopírovať pravidlo</span>
@@ -935,11 +935,11 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
                 </div>
 
                 {/* Box s navrhovaným pravidlom */}
-                <div className="mt-4 pt-4 border-t border-slate-100">
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
                   <div className="bg-slate-900 text-slate-200 p-3.5 rounded-2xl font-mono text-[11px] leading-relaxed relative group overflow-x-auto">
-                    <div className="flex items-center justify-between text-slate-400 text-[10px] pb-1.5 mb-1.5 border-b border-slate-800">
+                    <div className="flex items-center justify-between text-slate-400 dark:text-zinc-500 text-[10px] pb-1.5 mb-1.5 border-b border-slate-800">
                       <span>Navrhovaný text inštrukcie pre Gemini model:</span>
-                      <span className="text-slate-500 uppercase">{rec.targetPromptCategory}</span>
+                      <span className="text-slate-500 dark:text-zinc-400 uppercase">{rec.targetPromptCategory}</span>
                     </div>
                     <pre className="whitespace-pre-wrap">{rec.suggestedRule}</pre>
                   </div>
@@ -952,14 +952,14 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
 
       {/* 4. ZOZNAM NAJVIAC PROBLEMATICKÝCH SKU V REÁLNYCH AUDITOCH */}
       {summary.topProblematicSkus.length > 0 && (
-        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-slate-200 dark:border-zinc-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <h4 className="text-sm font-black text-slate-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-lime-600" />
                 Problematické položky identifikované v auditoch
               </h4>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-zinc-400">
                 Položky s nízkou istotou rozpoznania alebo chýbajúcimi údajmi, ktoré vyžadujú spresnenie v prompte.
               </p>
             </div>
@@ -967,12 +967,12 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {summary.topProblematicSkus.slice(0, 6).map((item, idx) => (
-              <div key={idx} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+              <div key={idx} className="p-3.5 bg-slate-50 dark:bg-zinc-800/60 rounded-2xl border border-slate-200/80 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-900 truncate max-w-[180px]" title={item.name}>
+                  <span className="text-xs font-black text-slate-900 dark:text-zinc-100 truncate max-w-[180px]" title={item.name}>
                     {item.name}
                   </span>
-                  <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-xs">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded-md border border-slate-200 dark:border-zinc-800 shadow-xs">
                     {item.occurrences}x výskyt
                   </span>
                 </div>
@@ -980,7 +980,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
                   <span className="text-[11px] text-amber-700 font-bold">
                     {item.issue}
                   </span>
-                  <span className="text-[10px] font-mono font-black text-slate-700">
+                  <span className="text-[10px] font-mono font-black text-slate-700 dark:text-zinc-300">
                     {Math.round(item.avgConfidence * 100)}% istota
                   </span>
                 </div>
@@ -993,11 +993,11 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
       {/* 5. MODÁL S VÝSLEDKOM AI AUTO-ENHANCE OPTIMALIZÁCIE */}
       {isEnhanceModalOpen && enhancementResult && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="p-6 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-lime-500 text-slate-950 rounded-2xl shadow-lg shadow-lime-500/20 font-black">
+                <div className="p-2.5 bg-lime-500 text-slate-950 dark:text-zinc-100 rounded-2xl shadow-lg shadow-lime-500/20 font-black">
                   <Sparkles className="w-6 h-6" />
                 </div>
                 <div>
@@ -1011,22 +1011,22 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
               </div>
               <button
                 onClick={() => setIsEnhanceModalOpen(false)}
-                className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/80 transition-colors"
+                className="text-slate-400 dark:text-zinc-500 hover:text-white p-2 rounded-xl bg-slate-800/80 transition-colors"
               >
                 ✕
               </button>
             </div>
 
             {/* Content */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50 dark:bg-zinc-900/60">
               {/* Súhrn zmien */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-                  <h5 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-xs space-y-2">
+                  <h5 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-lime-600" />
                     Zoznam implementovaných vylepšení
                   </h5>
-                  <ul className="space-y-1.5 text-xs text-slate-600">
+                  <ul className="space-y-1.5 text-xs text-slate-600 dark:text-zinc-400">
                     {enhancementResult.changesSummary.map((change, cIdx) => (
                       <li key={cIdx} className="flex items-start gap-2">
                         <span className="text-lime-600 font-bold">•</span>
@@ -1036,12 +1036,12 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
                   </ul>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-                  <h5 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-xs space-y-2">
+                  <h5 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-zinc-300 flex items-center gap-1.5">
                     <TrendingUp className="w-4 h-4 text-emerald-600" />
                     Očakávané prínosy
                   </h5>
-                  <ul className="space-y-1.5 text-xs text-slate-600">
+                  <ul className="space-y-1.5 text-xs text-slate-600 dark:text-zinc-400">
                     {enhancementResult.expectedImprovements.map((imp, iIdx) => (
                       <li key={iIdx} className="flex items-start gap-2">
                         <span className="text-emerald-600 font-bold">•</span>
@@ -1055,12 +1055,12 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
               {/* Náhľad nového promptu */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black uppercase tracking-widest text-slate-500 font-mono">
+                  <label className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-zinc-400 font-mono">
                     Náhľad optimalizovaného promptu
                   </label>
                   <button
                     onClick={() => handleCopy(enhancementResult.optimizedPrompt, 'modal-auto')}
-                    className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1"
+                    className="text-xs font-bold text-slate-600 dark:text-zinc-400 hover:text-slate-900 flex items-center gap-1"
                   >
                     {copiedId === 'modal-auto' ? <Check className="w-3.5 h-3.5 text-lime-600" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedId === 'modal-auto' ? 'Skopírované' : 'Kopírovať celý text'}</span>
@@ -1073,13 +1073,13 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
             </div>
 
             {/* Footer */}
-            <div className="p-5 bg-white border-t border-slate-200 flex items-center justify-between gap-4">
+            <div className="p-5 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-4">
               <button
                 onClick={() => {
                   onApplyRule(enhancementResult.optimizedPrompt, 'full-auto-replace');
                   setIsEnhanceModalOpen(false);
                 }}
-                className="px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200"
+                className="px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-colors border border-slate-200 dark:border-zinc-800"
               >
                 Vložiť iba do editora (bez uloženia)
               </button>
@@ -1087,7 +1087,7 @@ export const PromptRecommendationsView: React.FC<PromptRecommendationsViewProps>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsEnhanceModalOpen(false)}
-                  className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                  className="px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
                 >
                   Zrušiť
                 </button>

@@ -42,12 +42,12 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, onFilte
   };
 
   return (
-    <div className="bg-slate-50/60 p-2.5 rounded-xl mb-3 space-y-2 shadow-sm border border-gray-205 backdrop-blur-xs">
+    <div className="bg-slate-50/60 dark:bg-zinc-900/70 p-2.5 rounded-xl mb-3 space-y-2 shadow-sm border border-gray-205 dark:border-zinc-800 backdrop-blur-xs">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
         {/* Search Input */}
         <div className="relative group">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-            <SearchIcon className="h-4 w-4 text-gray-400 group-focus-within:text-lime-500 transition-colors" />
+            <SearchIcon className="h-4 w-4 text-gray-400 dark:text-zinc-500 group-focus-within:text-lime-500 transition-colors" />
           </span>
           <input
             type="text"
@@ -56,7 +56,7 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, onFilte
             value={filters.searchTerm}
             onChange={handleInputChange}
             placeholder={searchPlaceholder}
-            className="block w-full rounded-xl border-none bg-white py-1.5 pl-9 pr-3 text-gray-950 ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold shadow-xs transition-all"
+            className="block w-full rounded-xl border-none bg-white dark:bg-zinc-800 py-1.5 pl-9 pr-3 text-gray-950 dark:text-zinc-100 ring-1 ring-inset ring-gray-200 dark:ring-zinc-700 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold shadow-xs transition-all"
           />
         </div>
 
@@ -67,15 +67,15 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, onFilte
                 name="posFilter"
                 value={filters.posFilter || 'all'}
                 onChange={handleInputChange}
-                className="block w-full rounded-xl border-none bg-white py-1.5 pl-3 pr-8 text-gray-950 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold shadow-xs transition-all cursor-pointer"
+                className="block w-full rounded-xl border-none bg-white dark:bg-zinc-800 py-1.5 pl-3 pr-8 text-gray-950 dark:text-zinc-100 ring-1 ring-inset ring-gray-200 dark:ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold shadow-xs transition-all cursor-pointer"
             >
-                <option value="all">Všetky objekty</option>
-                <option value="products_only">Iba produkty</option>
-                <option value="pos_only">Iba POS materiály</option>
-                <option value="wobbler">POS: Wobblery</option>
-                <option value="stopper">POS: Stoppery</option>
-                <option value="stand">POS: Stojany</option>
-                <option value="pallet">POS: Palety</option>
+                <option value="all">{t('allObjects')}</option>
+                <option value="products_only">{t('productsOnly')}</option>
+                <option value="pos_only">{t('posOnly')}</option>
+                <option value="wobbler">{t('posWobbler')}</option>
+                <option value="stopper">{t('posStopper')}</option>
+                <option value="stand">{t('posStand')}</option>
+                <option value="pallet">{t('posPallet')}</option>
             </select>
         </div>
 
@@ -87,9 +87,9 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, onFilte
                     name="category"
                     value={filters.category}
                     onChange={handleInputChange}
-                    className="block w-full rounded-xl border-none bg-white py-1.5 pl-3 pr-8 text-gray-950 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold shadow-xs transition-all cursor-pointer"
+                    className="block w-full rounded-xl border-none bg-white dark:bg-zinc-800 py-1.5 pl-3 pr-8 text-gray-950 dark:text-zinc-100 ring-1 ring-inset ring-gray-200 dark:ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold shadow-xs transition-all cursor-pointer"
                 >
-                    <option value="">Všetky kategórie</option>
+                    <option value="">{t('allCategories')}</option>
                     {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
             </div>
@@ -103,9 +103,9 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, onFilte
                     name="chain"
                     value={filters.chain}
                     onChange={handleInputChange}
-                    className="block w-full rounded-xl border-none bg-white py-1.5 pl-3 pr-8 text-gray-950 ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold shadow-xs transition-all cursor-pointer"
+                    className="block w-full rounded-xl border-none bg-white dark:bg-zinc-800 py-1.5 pl-3 pr-8 text-gray-950 dark:text-zinc-100 ring-1 ring-inset ring-gray-200 dark:ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold shadow-xs transition-all cursor-pointer"
                 >
-                    <option value="">Všetky reťazce</option>
+                    <option value="">{t('allChains')}</option>
                     {chains.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
             </div>
@@ -115,24 +115,24 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, onFilte
 
       <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-0.5">
         {/* Ghost Toggle */}
-        <label className="relative inline-flex items-center cursor-pointer group bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-xs hover:border-lime-200 transition-colors">
+        <label className="relative inline-flex items-center cursor-pointer group bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-xs hover:border-lime-200 transition-colors">
             <input 
                 type="checkbox" 
                 name="hideGhosts" 
                 checked={filters.hideGhosts} 
-                onChange={handleInputChange}
+                onChange={handleInputChange} 
                 className="sr-only peer" 
             />
             <div className="relative w-8 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-200 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-lime-500"></div>
-            <span className="ms-2 text-[10px] font-bold text-gray-600 group-hover:text-gray-950 flex items-center gap-1.5 whitespace-nowrap">
-                Skryť "Ghost" produkty 
+            <span className="ms-2 text-[10px] font-bold text-gray-600 dark:text-zinc-300 group-hover:text-gray-950 dark:group-hover:text-white flex items-center gap-1.5 whitespace-nowrap">
+                {t('hideGhostProducts')}
                 <ShieldExclamationIcon className="w-3 h-3 text-amber-500" />
             </span>
         </label>
 
         {/* Confidence Slider */}
-        <div className="flex-grow flex items-center gap-2.5 bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-xs w-full sm:w-auto">
-          <label htmlFor="confidence" className="text-[9px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+        <div className="flex-grow flex items-center gap-2.5 bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-xs w-full sm:w-auto">
+          <label htmlFor="confidence" className="text-[9px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-wider whitespace-nowrap">
             {t('minConfidence', { confidence: filters.confidence })}
           </label>
           <input
@@ -147,14 +147,14 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, onFilte
         </div>
 
         {/* Price Filter */}
-        <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-xs">
+        <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-xs">
           <input
             type="number"
             name="minPrice"
             value={filters.minPrice}
             onChange={handlePriceChange}
             placeholder="Min €"
-            className="w-14 border-none p-0 text-center focus:ring-0 font-bold text-xs placeholder:text-gray-300 bg-transparent"
+            className="w-14 border-none p-0 text-center focus:ring-0 font-bold text-xs placeholder:text-gray-300 dark:placeholder:text-zinc-500 text-gray-950 dark:text-zinc-100 bg-transparent"
           />
           <span className="text-gray-300 font-bold text-xs">-</span>
           <input
@@ -163,7 +163,7 @@ export const FilterControls: React.FC<FilterControlsProps> = ({ filters, onFilte
             value={filters.maxPrice}
             onChange={handlePriceChange}
             placeholder="Max €"
-            className="w-14 border-none p-0 text-center focus:ring-0 font-bold text-xs placeholder:text-gray-300 bg-transparent"
+            className="w-14 border-none p-0 text-center focus:ring-0 font-bold text-xs placeholder:text-gray-300 dark:placeholder:text-zinc-500 text-gray-950 dark:text-zinc-100 bg-transparent"
           />
         </div>
       </div>

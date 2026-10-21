@@ -65,7 +65,7 @@ export const PromptManagerPanel: React.FC = () => {
     const [testMaterials, setTestMaterials] = useState<{ id: string; name: string; base64: string }[]>([]);
     const [selectedTestImageId, setSelectedTestImageId] = useState<string>('');
     const [customTestBase64, setCustomTestBase64] = useState<string>('');
-    const [testModel, setTestModel] = useState<string>('gemini-2.5-flash');
+    const [testModel, setTestModel] = useState<string>('gemini-3.1-flash-lite');
     const [isPlaying, setIsPlaying] = useState(false);
     const [testResult, setTestResult] = useState<AnalysisResult | null>(null);
     const [testError, setTestError] = useState<string | null>(null);
@@ -562,18 +562,18 @@ export const PromptManagerPanel: React.FC = () => {
     return (
         <div className="space-y-8 max-w-6xl mx-auto pb-24">
             {/* Header */}
-            <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2rem] shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-4">
                     <div className="bg-lime-100 p-3 rounded-2xl">
                         <EditIcon className="w-8 h-8 text-lime-600" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-gray-900">{t('promptManager')}</h2>
-                        <p className="text-sm text-gray-500 font-medium mt-1">{t('promptManagerSubtitle')}</p>
+                        <h2 className="text-2xl font-black text-gray-900 dark:text-zinc-100">{t('promptManager')}</h2>
+                        <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium mt-1">{t('promptManagerSubtitle')}</p>
                     </div>
                 </div>
                 
-                <div className="flex bg-gray-50 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto border border-gray-100">
+                <div className="flex bg-gray-50 dark:bg-zinc-800/60 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto border border-gray-100 dark:border-zinc-800">
                     {categories.map(cat => (
                         <button
                             key={cat.id}
@@ -581,7 +581,7 @@ export const PromptManagerPanel: React.FC = () => {
                             className={`flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
                                 category === cat.id 
                                 ? 'bg-white text-lime-700 shadow-sm border border-gray-100 scale-105' 
-                                : 'text-gray-500 hover:text-gray-900 hover:bg-white/50 border border-transparent'
+                                : 'text-gray-500 hover:text-gray-900 hover:bg-white/50 dark:hover:bg-zinc-800/50 border border-transparent'
                             }`}
                         >
                             <cat.icon className={`w-4 h-4 ${category === cat.id ? 'text-lime-600' : 'text-gray-400'}`} />
@@ -592,7 +592,7 @@ export const PromptManagerPanel: React.FC = () => {
             </div>
 
             {/* Tab Selector */}
-            <div className="flex border-b border-gray-200 gap-6 no-print overflow-x-auto">
+            <div className="flex border-b border-gray-200 dark:border-zinc-800 gap-6 no-print overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('recommendations')}
                     className={`pb-4 px-2 text-base font-black border-b-2 transition-all duration-200 flex items-center gap-2 shrink-0 ${
@@ -630,7 +630,7 @@ export const PromptManagerPanel: React.FC = () => {
                 >
                     <ChartPieIcon className="w-5 h-5" />
                     <span>Diagnostika & Simulátor presnosti</span>
-                    <span className="bg-slate-100 text-slate-700 text-[10px] uppercase font-black px-1.5 py-0.5 rounded-md border border-slate-200">ML Validation</span>
+                    <span className="bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-[10px] uppercase font-black px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-zinc-800">ML Validation</span>
                 </button>
             </div>
 
@@ -668,85 +668,85 @@ export const PromptManagerPanel: React.FC = () => {
                 isDiagnosticsLoading ? (
                     <div className="flex justify-center items-center h-64">
                         <SpinnerIcon className="w-12 h-12 text-lime-500 animate-spin" />
-                        <span className="ml-3 text-sm font-semibold text-gray-500">Spracovávam metriky a preklady...</span>
+                        <span className="ml-3 text-sm font-semibold text-gray-500 dark:text-zinc-400">Spracovávam metriky a preklady...</span>
                     </div>
                 ) : (
                     <div className="space-y-8 animate-fade-in">
                         {/* Horné štatistické panely */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm flex items-center gap-4">
                                 <div className="bg-lime-50 p-4 rounded-2xl text-lime-600">
                                     <TrendingUp className="w-6 h-6 animate-pulse" />
                                 </div>
                                 <div>
-                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Presnosť SKU</h4>
-                                    <p className="text-2xl font-black text-gray-900 mt-1">{totalCatalogItems > 0 ? Math.max(70, Math.min(100, Math.round(100 - (itemsWithAliases.length / totalCatalogItems) * 20))) : 95} %</p>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">Určené podielom opráv názvov</p>
+                                    <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Presnosť SKU</h4>
+                                    <p className="text-2xl font-black text-gray-900 dark:text-zinc-100 mt-1">{totalCatalogItems > 0 ? Math.max(70, Math.min(100, Math.round(100 - (itemsWithAliases.length / totalCatalogItems) * 20))) : 95} %</p>
+                                    <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">Určené podielom opráv názvov</p>
                                 </div>
                             </div>
 
-                            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm flex items-center gap-4">
                                 <div className="bg-blue-50 p-4 rounded-2xl text-blue-600">
                                     <Activity className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Presnosť cien</h4>
-                                    <p className="text-2xl font-black text-gray-900 mt-1">{totalDetectedProducts > 0 ? Math.round((productsWithPrices / totalDetectedProducts) * 100) : 88} %</p>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">Detegované ceny k produktom</p>
+                                    <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Presnosť cien</h4>
+                                    <p className="text-2xl font-black text-gray-900 dark:text-zinc-100 mt-1">{totalDetectedProducts > 0 ? Math.round((productsWithPrices / totalDetectedProducts) * 100) : 88} %</p>
+                                    <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">Detegované ceny k produktom</p>
                                 </div>
                             </div>
 
-                            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm flex items-center gap-4">
                                 <div className="bg-amber-50 p-4 rounded-2xl text-amber-600">
                                     <Zap className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Názvový Drift</h4>
-                                    <p className="text-2xl font-black text-gray-900 mt-1">{totalAliasCount} odchýlok</p>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">Manuálne preložené varianty</p>
+                                    <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Názvový Drift</h4>
+                                    <p className="text-2xl font-black text-gray-900 dark:text-zinc-100 mt-1">{totalAliasCount} odchýlok</p>
+                                    <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">Manuálne preložené varianty</p>
                                 </div>
                             </div>
 
-                            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center gap-4">
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm flex items-center gap-4">
                                 <div className="bg-purple-50 p-4 rounded-2xl text-purple-600">
                                     <FileText className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Optimalizované segmenty</h4>
-                                    <p className="text-2xl font-black text-gray-900 mt-1">{productCategories.length} / 5</p>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">Aktívne segmentové prompty</p>
+                                    <h4 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Optimalizované segmenty</h4>
+                                    <p className="text-2xl font-black text-gray-900 dark:text-zinc-100 mt-1">{productCategories.length} / 5</p>
+                                    <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">Aktívne segmentové prompty</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Stredný panel so zoznamom Aliasov */}
-                        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
-                            <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                        <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+                            <div className="p-6 bg-gray-50 dark:bg-zinc-800/60 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center">
                                 <div className="flex items-center gap-2">
-                                    <Binary className="w-5 h-5 text-gray-500" />
+                                    <Binary className="w-5 h-5 text-gray-500 dark:text-zinc-400" />
                                     <div>
-                                        <h3 className="text-sm font-black text-gray-800">Učiaci sa slovník (Bias Correction Directory)</h3>
-                                        <p className="text-[11px] text-gray-500 font-medium">Historicky opravené synonymá z reálnych regálov. Pomáhajú trénovať inštrukciu.</p>
+                                        <h3 className="text-sm font-black text-gray-800 dark:text-zinc-200">Učiaci sa slovník (Bias Correction Directory)</h3>
+                                        <p className="text-[11px] text-gray-500 dark:text-zinc-400 font-medium">Historicky opravené synonymá z reálnych regálov. Pomáhajú trénovať inštrukciu.</p>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div className="divide-y divide-gray-100 max-h-[350px] overflow-y-auto custom-scrollbar">
+                            <div className="divide-y divide-gray-100 dark:divide-zinc-800 max-h-[350px] overflow-y-auto custom-scrollbar">
                                 {itemsWithAliases.length > 0 ? (
                                     itemsWithAliases.map((item, idx) => (
                                         <div key={idx} className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-50/50 transition-colors">
                                             <div className="space-y-1.5 min-w-[300px]">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                                                    <span className="text-xs font-black text-slate-800 dark:text-zinc-200 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-zinc-800">
                                                         {item.category || "Všeobecný"}
                                                     </span>
                                                     {item.manufacturer && (
-                                                        <span className="text-[10px] font-bold text-gray-500">{item.manufacturer}</span>
+                                                        <span className="text-[10px] font-bold text-gray-500 dark:text-zinc-400">{item.manufacturer}</span>
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-sm flex-wrap">
                                                     <span className="font-extrabold text-lime-700">{item.canonicalName}</span>
-                                                    <ArrowRight className="w-4 h-4 text-gray-400" />
+                                                    <ArrowRight className="w-4 h-4 text-gray-400 dark:text-zinc-500" />
                                                     <div className="flex gap-1.5 flex-wrap">
                                                         {item.aliases.map((al: string, aIdx: number) => (
                                                             <span key={aIdx} className="bg-red-50 text-red-700 border border-red-100 text-[10px] px-2 py-0.5 rounded-lg font-mono">
@@ -767,7 +767,7 @@ export const PromptManagerPanel: React.FC = () => {
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="text-center py-12 text-gray-400 text-xs">
+                                    <div className="text-center py-12 text-gray-400 dark:text-zinc-500 text-xs">
                                         Neboli zaznamenané žiadne odchýlky alebo synonymá.
                                     </div>
                                 )}
@@ -775,26 +775,26 @@ export const PromptManagerPanel: React.FC = () => {
                         </div>
 
                         {/* Spodný Panel: Golden Target Validation Simulator */}
-                        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden">
                             <div className="p-6 bg-gradient-to-r from-gray-800 to-slate-900 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <div>
                                     <h3 className="text-base font-black flex items-center gap-2">
                                         <Sparkles className="w-5 h-5 text-lime-400 animate-pulse" />
                                         Simulátor zlatého štandardu (Golden Target Evaluation)
                                     </h3>
-                                    <p className="text-xs text-slate-400 mt-1">Porovnajte presnosť Vašich upravených inštrukcií voči finálnemu upravenému datasetu pred prenesením do ostrej prevádzky.</p>
+                                    <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">Porovnajte presnosť Vašich upravených inštrukcií voči finálnemu upravenému datasetu pred prenesením do ostrej prevádzky.</p>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-gray-100 dark:divide-zinc-800">
                                 {/* Nastavenia simulácie */}
-                                <div className="lg:col-span-4 p-6 space-y-4 bg-slate-50/50">
+                                <div className="lg:col-span-4 p-6 space-y-4 bg-slate-50/50 dark:bg-zinc-900/60">
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono">1. Výber predchádzajúceho auditu</label>
+                                        <label className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest font-mono">1. Výber predchádzajúceho auditu</label>
                                         <select
                                             value={simSelectedAnalysisId}
                                             onChange={(e) => handleSimAnalysisChange(e.target.value)}
-                                            className="w-full bg-white rounded-xl py-2.5 px-3 border border-gray-200 text-xs font-bold text-gray-800"
+                                            className="w-full bg-white dark:bg-zinc-900 rounded-xl py-2.5 px-3 border border-gray-200 dark:border-zinc-800 text-xs font-bold text-gray-800 dark:text-zinc-200"
                                         >
                                             {diagnosticsAnalyses.map(analysis => (
                                                 <option key={analysis.id} value={analysis.id}>
@@ -806,7 +806,7 @@ export const PromptManagerPanel: React.FC = () => {
 
                                     {simSelectedAnalysisId && (
                                         <div className="space-y-1.5">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono">2. Výber regálového obrázka</label>
+                                            <label className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest font-mono">2. Výber regálového obrázka</label>
                                             <select
                                                 value={simSelectedImageId}
                                                 onChange={(e) => {
@@ -814,7 +814,7 @@ export const PromptManagerPanel: React.FC = () => {
                                                     setSimulationResult(null);
                                                     setSimulationError(null);
                                                 }}
-                                                className="w-full bg-white rounded-xl py-2.5 px-3 border border-gray-200 text-xs font-bold text-gray-800"
+                                                className="w-full bg-white dark:bg-zinc-900 rounded-xl py-2.5 px-3 border border-gray-200 dark:border-zinc-800 text-xs font-bold text-gray-800 dark:text-zinc-200"
                                             >
                                                 {diagnosticsAnalyses
                                                     .find(a => a.id === simSelectedAnalysisId)
@@ -829,7 +829,7 @@ export const PromptManagerPanel: React.FC = () => {
 
                                     {simSelectedImageId && (
                                         <div className="space-y-4">
-                                            <div className="rounded-xl overflow-hidden aspect-video border border-gray-200 relative bg-slate-100">
+                                            <div className="rounded-xl overflow-hidden aspect-video border border-gray-200 dark:border-zinc-800 relative bg-slate-100 dark:bg-zinc-800">
                                                 <img
                                                     src={`data:image/jpeg;base64,${
                                                         diagnosticsAnalyses
@@ -868,7 +868,7 @@ export const PromptManagerPanel: React.FC = () => {
                                     {isSimulating ? (
                                         <div className="flex-grow flex flex-col justify-center items-center py-12 space-y-3">
                                             <div className="w-12 h-12 rounded-full border-4 border-lime-100 border-t-lime-600 animate-spin"></div>
-                                            <p className="text-xs text-gray-500 font-bold">Porovnávam výstup promptu s uloženou realitou na regáli...</p>
+                                            <p className="text-xs text-gray-500 dark:text-zinc-400 font-bold">Porovnávam výstup promptu s uloženou realitou na regáli...</p>
                                         </div>
                                     ) : simulationError ? (
                                         <div className="flex-grow flex flex-col justify-center items-center p-8 text-center text-red-500 text-xs">
@@ -889,25 +889,25 @@ export const PromptManagerPanel: React.FC = () => {
                                                     <span className="text-xl font-black text-indigo-800 block mt-1">{simulationResult.statistics.recall}%</span>
                                                     <span className="text-[9px] text-indigo-600 mt-0.5 block">Z reálne prítomných</span>
                                                 </div>
-                                                <div className="bg-slate-50 p-4 border border-slate-200 rounded-2xl text-center">
-                                                    <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider block font-mono">F1 Skóre (Zladenosť)</span>
-                                                    <span className="text-xl font-black text-slate-800 block mt-1">{simulationResult.statistics.f1Score}%</span>
-                                                    <span className="text-[9px] text-slate-600 mt-0.5 block">Celková kvalita modelu</span>
+                                                <div className="bg-slate-50 dark:bg-zinc-800/60 p-4 border border-slate-200 dark:border-zinc-800 rounded-2xl text-center">
+                                                    <span className="text-[10px] font-black text-slate-700 dark:text-zinc-300 uppercase tracking-wider block font-mono">F1 Skóre (Zladenosť)</span>
+                                                    <span className="text-xl font-black text-slate-800 dark:text-zinc-200 block mt-1">{simulationResult.statistics.f1Score}%</span>
+                                                    <span className="text-[9px] text-slate-600 dark:text-zinc-400 mt-0.5 block">Celková kvalita modelu</span>
                                                 </div>
                                             </div>
 
                                             {/* Rozbor rozdielov */}
-                                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 flex-grow max-h-[180px] overflow-y-auto custom-scrollbar">
-                                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Zistené rozdiely na regáli (Simulated vs Real)</h4>
+                                            <div className="bg-slate-50/50 dark:bg-zinc-900/60 p-4 rounded-2xl border border-slate-100 dark:border-zinc-800 flex-grow max-h-[180px] overflow-y-auto custom-scrollbar">
+                                                <h4 className="text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-3">Zistené rozdiely na regáli (Simulated vs Real)</h4>
                                                 <div className="space-y-1.5 text-xs">
                                                     {simulationResult.compared.map((item: any, idx: number) => (
-                                                        <div key={idx} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
+                                                        <div key={idx} className="flex justify-between items-center py-1 border-b border-gray-100 dark:border-zinc-800 last:border-b-0">
                                                             <div className="flex items-center gap-2">
                                                                 {item.status === 'exact' && <span className="w-2 h-2 rounded-full bg-lime-500" />}
                                                                 {item.status === 'drift' && <span className="w-2 h-2 rounded-full bg-orange-400" />}
                                                                 {item.status === 'missed' && <span className="w-2 h-2 rounded-full bg-red-400" />}
                                                                 {item.status === 'extra' && <span className="w-2 h-2 rounded-full bg-blue-400" />}
-                                                                <span className="font-semibold text-gray-700 truncate max-w-[200px]">{item.name}</span>
+                                                                <span className="font-semibold text-gray-700 dark:text-zinc-300 truncate max-w-[200px]">{item.name}</span>
                                                             </div>
                                                             <div className="flex items-center gap-2 shrink-0">
                                                                 {item.status === 'exact' && (
@@ -932,20 +932,20 @@ export const PromptManagerPanel: React.FC = () => {
 
                                             {/* Usage Info */}
                                             {simulationResult.statistics.usageMetadata && (
-                                                <div className="border-t border-gray-100 pt-3 flex justify-between items-center text-[10px] text-gray-400 font-bold font-mono">
+                                                <div className="border-t border-gray-100 dark:border-zinc-800 pt-3 flex justify-between items-center text-[10px] text-gray-400 dark:text-zinc-500 font-bold font-mono">
                                                     <span>Simulovaná spotreba: {simulationResult.statistics.usageMetadata.promptTokenCount} in / {simulationResult.statistics.usageMetadata.candidatesTokenCount} out</span>
                                                     <span className="text-lime-600">Model: {testModel}</span>
                                                 </div>
                                             )}
                                         </div>
                                     ) : (
-                                        <div className="flex-grow flex flex-col justify-center items-center py-16 text-center text-gray-400 space-y-3">
-                                            <div className="p-3 bg-gray-50 rounded-full border border-gray-100">
+                                        <div className="flex-grow flex flex-col justify-center items-center py-16 text-center text-gray-400 dark:text-zinc-500 space-y-3">
+                                            <div className="p-3 bg-gray-50 dark:bg-zinc-800/60 rounded-full border border-gray-100 dark:border-zinc-800">
                                                 <CheckSquare className="w-8 h-8 text-gray-300" />
                                             </div>
                                             <div className="max-w-xs">
-                                                <p className="font-bold text-gray-600 text-sm">Validátor je pripravený</p>
-                                                <p className="text-[11px] text-gray-400 mt-1">Zvoľte historickú fotografiu, kliknite na spustiť, a aplikácia vypočíta presnosť Vášho nového inštrukčného predpisu.</p>
+                                                <p className="font-bold text-gray-600 dark:text-zinc-400 text-sm">Validátor je pripravený</p>
+                                                <p className="text-[11px] text-gray-400 dark:text-zinc-500 mt-1">Zvoľte historickú fotografiu, kliknite na spustiť, a aplikácia vypočíta presnosť Vášho nového inštrukčného predpisu.</p>
                                             </div>
                                         </div>
                                     )}
@@ -974,7 +974,7 @@ export const PromptManagerPanel: React.FC = () => {
                                 <select
                                     value={selectedProductCategory}
                                     onChange={(e) => setSelectedProductCategory(e.target.value)}
-                                    className="bg-white text-gray-900 border-none rounded-xl font-bold py-2.5 px-4 pr-10 text-xs focus:ring-2 focus:ring-lime-300 cursor-pointer pointer-events-auto"
+                                    className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 border-none rounded-xl font-bold py-2.5 px-4 pr-10 text-xs focus:ring-2 focus:ring-lime-300 cursor-pointer pointer-events-auto"
                                 >
                                     <option value="">Všetky segmenty (Všeobecný)</option>
                                     {productCategories.map(cat => (
@@ -989,7 +989,7 @@ export const PromptManagerPanel: React.FC = () => {
                                 <select
                                     value={selectedClientName}
                                     onChange={(e) => setSelectedClientName(e.target.value)}
-                                    className="bg-white text-gray-900 border-none rounded-xl font-bold py-2.5 px-4 pr-10 text-xs focus:ring-2 focus:ring-lime-300 cursor-pointer pointer-events-auto"
+                                    className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-100 border-none rounded-xl font-bold py-2.5 px-4 pr-10 text-xs focus:ring-2 focus:ring-lime-300 cursor-pointer pointer-events-auto"
                                 >
                                     <option value="">Všetci klienti (Všeobecný)</option>
                                     {clients.map(cl => (
@@ -1013,15 +1013,15 @@ export const PromptManagerPanel: React.FC = () => {
                                         </div>
                                         <button 
                                             onClick={() => setCompareWithVersionId(null)}
-                                            className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-800 bg-white hover:bg-gray-100 border border-gray-200 px-3.5 py-1.5 rounded-xl transition-all font-sans"
+                                            className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-zinc-400 hover:text-gray-800 bg-white dark:bg-zinc-900 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-800 px-3.5 py-1.5 rounded-xl transition-all font-sans"
                                         >
                                             Zatvoriť porovnanie
                                         </button>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-2">
+                                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-100 dark:border-zinc-800 space-y-2">
                                             <div className="flex justify-between items-center">
-                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-sans">Verzia v{compareVer.version} {compareVer.label ? `[${compareVer.label}]` : ''}</span>
+                                                <span className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest font-sans">Verzia v{compareVer.version} {compareVer.label ? `[${compareVer.label}]` : ''}</span>
                                                 <button 
                                                     onClick={() => setEditingText(compareVer.text)}
                                                     className="text-[9px] font-black text-lime-700 hover:underline uppercase tracking-wide font-sans"
@@ -1029,13 +1029,13 @@ export const PromptManagerPanel: React.FC = () => {
                                                     Obnoviť túto verziu
                                                 </button>
                                             </div>
-                                            <div className="text-[11px] font-mono text-gray-600 bg-gray-50/50 p-3 rounded-xl max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed border border-gray-100/30">
+                                            <div className="text-[11px] font-mono text-gray-600 dark:text-zinc-400 bg-gray-50/50 dark:bg-zinc-900/60 p-3 rounded-xl max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed border border-gray-100/30">
                                                 {compareVer.text}
                                             </div>
                                         </div>
-                                        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-2">
+                                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-100 dark:border-zinc-800 space-y-2">
                                             <span className="text-[10px] font-black text-lime-600 uppercase tracking-widest block font-sans">Váš aktuálny rozpísaný text</span>
-                                            <div className="text-[11px] font-mono text-gray-800 bg-lime-50/10 p-3 rounded-xl max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed border border-lime-100/25">
+                                            <div className="text-[11px] font-mono text-gray-800 dark:text-zinc-200 bg-lime-50/10 p-3 rounded-xl max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed border border-lime-100/25">
                                                 {editingText}
                                             </div>
                                         </div>
@@ -1048,15 +1048,15 @@ export const PromptManagerPanel: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Editor */}
                 <div className="lg:col-span-2 space-y-4">
-                    <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col min-h-[620px]">
-                        <div className="p-5 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-                            <span className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <div className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden flex flex-col min-h-[620px]">
+                        <div className="p-5 bg-gray-50 dark:bg-zinc-800/60 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center">
+                            <span className="text-sm font-bold text-gray-700 dark:text-zinc-300 flex items-center gap-2">
                                 <EditIcon className="w-4 h-4 text-lime-600" /> Editor {selectedProductCategory ? `[${selectedProductCategory}]` : `[Všeobecný]`}{selectedClientName ? ` - ${selectedClientName}` : ''}
                             </span>
                             <div className="flex gap-3">
                                 <button 
                                     onClick={loadHistory}
-                                    className="p-2.5 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-white transition-all hover:shadow-sm"
+                                    className="p-2.5 text-gray-400 dark:text-zinc-500 hover:text-gray-600 rounded-xl hover:bg-white transition-all hover:shadow-sm"
                                     title={t('reset')}
                                 >
                                     <ArrowPathIcon className="w-4 h-4" />
@@ -1073,8 +1073,8 @@ export const PromptManagerPanel: React.FC = () => {
                         </div>
 
                         {/* Presets Row */}
-                        <div className="px-5 py-3 bg-white border-b border-gray-100 flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 mr-1 flex items-center gap-1">
+                        <div className="px-5 py-3 bg-white dark:bg-zinc-900 border-b border-gray-100 dark:border-zinc-800 flex flex-wrap items-center gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mr-1 flex items-center gap-1">
                                 <Sparkles className="w-3.5 h-3.5 text-yellow-500" /> Rýchle vylepšenia promptu:
                             </span>
                             <button
@@ -1098,7 +1098,7 @@ export const PromptManagerPanel: React.FC = () => {
                         </div>
 
                         <textarea
-                            className="flex-grow p-8 font-mono text-xs bg-white text-gray-800 focus:ring-0 border-none resize-none custom-scrollbar leading-relaxed min-h-[300px]"
+                            className="flex-grow p-8 font-mono text-xs bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-200 focus:ring-0 border-none resize-none custom-scrollbar leading-relaxed min-h-[300px]"
                             value={editingText}
                             onChange={(e) => setEditingText(e.target.value)}
                             spellCheck={false}
@@ -1106,25 +1106,25 @@ export const PromptManagerPanel: React.FC = () => {
                         />
 
                         {/* Metadata block */}
-                        <div className="p-5 border-t border-gray-100 bg-gray-50/50 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-5 border-t border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/60 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="flex flex-col gap-1.5">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Označenie/Názov novej optimalizácie (nepovinné):</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-500">Označenie/Názov novej optimalizácie (nepovinné):</span>
                                 <input
                                     type="text"
                                     value={promptLabel}
                                     onChange={(e) => setPromptLabel(e.target.value)}
                                     placeholder="Napr. Optimalizované pre kávové kapsule Tesco"
-                                    className="bg-white text-gray-800 border-none rounded-xl font-bold py-2 px-3 text-xs focus:ring-2 focus:ring-lime-300"
+                                    className="bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-200 border-none rounded-xl font-bold py-2 px-3 text-xs focus:ring-2 focus:ring-lime-300"
                                 />
                             </div>
                             <div className="flex flex-col gap-1.5">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Popis vykonaných zmien (nepovinné):</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-500">Popis vykonaných zmien (nepovinné):</span>
                                 <input
                                     type="text"
                                     value={promptDescription}
                                     onChange={(e) => setPromptDescription(e.target.value)}
                                     placeholder="Napr. Pridanie visual features a spresnenie desatinných miest."
-                                    className="bg-white text-gray-800 border-none rounded-xl font-bold py-2 px-3 text-xs focus:ring-2 focus:ring-lime-300"
+                                    className="bg-white dark:bg-zinc-900 text-gray-800 dark:text-zinc-200 border-none rounded-xl font-bold py-2 px-3 text-xs focus:ring-2 focus:ring-lime-300"
                                 />
                             </div>
                         </div>
@@ -1133,10 +1133,10 @@ export const PromptManagerPanel: React.FC = () => {
 
                 {/* History Sidebar */}
                 <div className="space-y-4">
-                    <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 flex flex-col h-[600px]">
-                        <div className="p-5 bg-gray-50 border-b border-gray-100 flex items-center gap-2 rounded-t-[2rem]">
-                            <HistoryIcon className="w-5 h-5 text-gray-500" />
-                            <span className="text-sm font-bold text-gray-700">{t('versionHistory')} {selectedProductCategory ? `(${selectedProductCategory})` : `(Všeobecný)`}</span>
+                    <div className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col h-[600px]">
+                        <div className="p-5 bg-gray-50 dark:bg-zinc-800/60 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-2 rounded-t-[2rem]">
+                            <HistoryIcon className="w-5 h-5 text-gray-500 dark:text-zinc-400" />
+                            <span className="text-sm font-bold text-gray-700 dark:text-zinc-300">{t('versionHistory')} {selectedProductCategory ? `(${selectedProductCategory})` : `(Všeobecný)`}</span>
                         </div>
                         <div className="flex-grow overflow-y-auto p-5 space-y-4 custom-scrollbar">
                             {history.length > 0 ? history.map((p) => (
@@ -1153,7 +1153,7 @@ export const PromptManagerPanel: React.FC = () => {
                                             <span className={`text-[10px] uppercase font-black px-2.5 py-1 rounded-lg ${p.isActive ? 'bg-lime-500 text-white shadow-sm shadow-lime-200' : 'bg-gray-100 text-gray-500'}`}>
                                                 v{p.version}
                                             </span>
-                                            <p className="text-[10px] text-gray-400 mt-2 font-medium">{new Date(p.createdAt).toLocaleString()}</p>
+                                            <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-2 font-medium">{new Date(p.createdAt).toLocaleString()}</p>
                                         </div>
                                         {p.isActive ? (
                                             <span className="text-lime-600 bg-lime-100 p-1.5 rounded-xl shadow-sm">
@@ -1162,7 +1162,7 @@ export const PromptManagerPanel: React.FC = () => {
                                         ) : (
                                             <button
                                                 onClick={() => p.id && handleActivate(p.id)}
-                                                className="text-[10px] font-bold text-gray-500 hover:text-lime-700 uppercase tracking-widest border border-gray-200 px-3 py-1.5 rounded-xl hover:border-lime-300 hover:bg-lime-50 transition-all active:scale-95"
+                                                className="text-[10px] font-bold text-gray-500 dark:text-zinc-400 hover:text-lime-700 uppercase tracking-widest border border-gray-200 dark:border-zinc-800 px-3 py-1.5 rounded-xl hover:border-lime-300 hover:bg-lime-50 transition-all active:scale-95"
                                             >
                                                 {t('activate')}
                                             </button>
@@ -1171,19 +1171,19 @@ export const PromptManagerPanel: React.FC = () => {
 
                                     {/* Custom labels and descriptions if present */}
                                     {p.label && (
-                                        <h4 className="text-xs font-black text-gray-800 tracking-tight mb-0.5">{p.label}</h4>
+                                        <h4 className="text-xs font-black text-gray-800 dark:text-zinc-200 tracking-tight mb-0.5">{p.label}</h4>
                                     )}
                                     {p.description && (
-                                        <p className="text-[10px] text-gray-500 leading-normal mb-2 italic">"{p.description}"</p>
+                                        <p className="text-[10px] text-gray-500 dark:text-zinc-400 leading-normal mb-2 italic">"{p.description}"</p>
                                     )}
 
-                                    <p className="text-[11px] text-gray-500 line-clamp-3 italic leading-relaxed bg-gray-50 p-2.5 rounded-xl border border-gray-100/30">"{p.text}"</p>
+                                    <p className="text-[11px] text-gray-500 dark:text-zinc-400 line-clamp-3 italic leading-relaxed bg-gray-50 dark:bg-zinc-800/60 p-2.5 rounded-xl border border-gray-100/30">"{p.text}"</p>
                                     
                                     {/* Multi-column telemetry statistics */}
                                     {typeof p.totalCount === 'number' && p.totalCount > 0 ? (
-                                        <div className="mt-3 pt-2.5 border-t border-gray-100 grid grid-cols-3 gap-1.5 text-center text-[10px] font-medium text-gray-400">
-                                            <div className="bg-gray-50/50 p-1.5 rounded-lg border border-gray-100/50">
-                                                <span className="block font-black text-gray-700 text-xs">{p.totalCount}x</span>
+                                        <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-zinc-800 grid grid-cols-3 gap-1.5 text-center text-[10px] font-medium text-gray-400 dark:text-zinc-500">
+                                            <div className="bg-gray-50/50 dark:bg-zinc-900/60 p-1.5 rounded-lg border border-gray-100/50">
+                                                <span className="block font-black text-gray-700 dark:text-zinc-300 text-xs">{p.totalCount}x</span>
                                                 <span className="text-[9px]">Spustení</span>
                                             </div>
                                             <div className="bg-emerald-50/20 p-1.5 rounded-lg border border-emerald-100/30">
@@ -1194,13 +1194,13 @@ export const PromptManagerPanel: React.FC = () => {
                                             </div>
                                             <div className="bg-orange-50/20 p-1.5 rounded-lg border border-orange-100/30">
                                                 <span className="block font-black text-orange-600 text-[10px] truncate">
-                                                    {p.totalTokensUsed ? `${((p.totalTokensUsed / 1000000) * 0.35).toFixed(3)} €` : '0.00 €'}
+                                                    {p.totalTokensUsed ? `${((p.totalTokensUsed / 1000000) * 0.35).toFixed(3)} ` : '0.00 '}
                                                 </span>
                                                 <span className="text-[9px]">Cena</span>
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="text-[9px] text-gray-400 italic mt-2">Doteraz nespustený v produkcii</p>
+                                        <p className="text-[9px] text-gray-400 dark:text-zinc-500 italic mt-2">Doteraz nespustený v produkcii</p>
                                     )}
 
                                     <div className="mt-3 pt-2 border-t border-gray-50 flex items-center justify-between">
@@ -1228,11 +1228,11 @@ export const PromptManagerPanel: React.FC = () => {
                                 </div>
                             )) : (
                                 <div className="text-center py-16 flex flex-col items-center justify-center">
-                                    <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                                    <div className="bg-gray-50 dark:bg-zinc-800/60 w-16 h-16 rounded-full flex items-center justify-center mb-4">
                                         <HistoryIcon className="w-8 h-8 text-gray-300" />
                                     </div>
-                                    <p className="text-sm font-bold text-gray-900 mb-1">{t('noHistoryYet')}</p>
-                                    <p className="text-xs text-gray-500">Uložte prvú verziu promptu.</p>
+                                    <p className="text-sm font-bold text-gray-900 dark:text-zinc-100 mb-1">{t('noHistoryYet')}</p>
+                                    <p className="text-xs text-gray-500 dark:text-zinc-400">Uložte prvú verziu promptu.</p>
                                 </div>
                             )}
                         </div>
@@ -1241,28 +1241,28 @@ export const PromptManagerPanel: React.FC = () => {
             </div>
 
             {/* INKUBÁTOR / PLAYGROUND SEKCIA */}
-            <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden mt-12">
+            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-zinc-800 overflow-hidden mt-12">
                 <div className="p-8 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h3 className="text-xl font-black text-gray-900 flex items-center gap-3">
+                        <h3 className="text-xl font-black text-gray-900 dark:text-zinc-100 flex items-center gap-3">
                             <RocketLaunchIcon className="w-6 h-6 text-lime-600 animate-pulse" />
                             Prompt Playground (Interaktívne Pieskovisko)
                         </h3>
-                        <p className="text-sm text-gray-500 font-medium mt-1">
+                        <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium mt-1">
                             Otestujte draft promptu z editora na reálnej fotografii regálu okamžite bez ukladania zmien do archívu.
                         </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
-                        <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider pl-2">Model:</span>
+                    <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-zinc-900 p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800">
+                        <span className="text-[10px] font-black uppercase text-gray-400 dark:text-zinc-500 tracking-wider pl-2">Model:</span>
                         <select
                             value={testModel}
                             onChange={(e) => setTestModel(e.target.value)}
-                            className="bg-gray-50 text-gray-800 text-xs font-bold rounded-xl py-1.5 px-3 border border-gray-200 focus:ring-2 focus:ring-lime-500 cursor-pointer"
+                            className="bg-gray-50 dark:bg-zinc-800/60 text-gray-800 dark:text-zinc-200 text-xs font-bold rounded-xl py-1.5 px-3 border border-gray-200 dark:border-zinc-800 focus:ring-2 focus:ring-lime-500 cursor-pointer"
                         >
-                            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Odporúčaný / Najlepšia rovnováha)</option>
-                            <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite (Ekonomicky najvýhodnejší / Low-Cost)</option>
-                            <option value="gemini-2.5-pro">Gemini 2.5 Pro (Maximálna presnosť a detaily)</option>
-                            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Blesková odozva)</option>
+                            <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite (Odporúčaný / Najvyššia rýchlosť)</option>
+                            <option value="gemini-3.8-flash">Gemini 3.8 Flash (Vynikajúca rovnováha)</option>
+                            <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Multimodálna presnosť)</option>
+                            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Maximálna hĺbka a detaily)</option>
                         </select>
                     </div>
                 </div>
@@ -1271,7 +1271,7 @@ export const PromptManagerPanel: React.FC = () => {
                     {/* LEVÝ PANEL: Výber a nahratie obrázka */}
                     <div className="lg:col-span-4 space-y-6">
                         <div className="space-y-2">
-                            <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest block">1. Vyberte regál k testu</label>
+                            <label className="text-[11px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest block">1. Vyberte regál k testu</label>
                             
                             {testMaterials.length > 0 && (
                                 <select
@@ -1281,7 +1281,7 @@ export const PromptManagerPanel: React.FC = () => {
                                         setTestResult(null);
                                         setTestError(null);
                                     }}
-                                    className="w-full bg-gray-50 rounded-xl py-3 px-4 text-xs font-bold border border-gray-200 text-gray-800 focus:ring-2 focus:ring-lime-500 cursor-pointer"
+                                    className="w-full bg-gray-50 dark:bg-zinc-800/60 rounded-xl py-3 px-4 text-xs font-bold border border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-zinc-200 focus:ring-2 focus:ring-lime-500 cursor-pointer"
                                 >
                                     {testMaterials.map((mat) => (
                                         <option key={mat.id} value={mat.id}>
@@ -1293,9 +1293,9 @@ export const PromptManagerPanel: React.FC = () => {
                             )}
 
                             <div className="mt-4">
-                                <label className="flex flex-col items-center justify-center p-6 bg-gray-50/50 hover:bg-lime-50/20 border-2 border-dashed border-gray-200 hover:border-lime-400 rounded-2xl cursor-pointer group transition-all">
-                                    <CameraIcon className="w-8 h-8 text-gray-400 group-hover:text-lime-600 transition-colors mb-2" />
-                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{t('addPhoto')} (alebo pretiahnite)</span>
+                                <label className="flex flex-col items-center justify-center p-6 bg-gray-50/50 dark:bg-zinc-900/60 hover:bg-lime-50/20 border-2 border-dashed border-gray-200 dark:border-zinc-800 hover:border-lime-400 rounded-2xl cursor-pointer group transition-all">
+                                    <CameraIcon className="w-8 h-8 text-gray-400 dark:text-zinc-500 group-hover:text-lime-600 transition-colors mb-2" />
+                                    <span className="text-[10px] font-black text-gray-500 dark:text-zinc-400 uppercase tracking-widest">{t('addPhoto')} (alebo pretiahnite)</span>
                                     <input 
                                         type="file" 
                                         className="hidden" 
@@ -1308,7 +1308,7 @@ export const PromptManagerPanel: React.FC = () => {
 
                         {/* Náhľad vybraného obrázka */}
                         {(selectedTestImageId === 'custom' ? customTestBase64 : testMaterials.find(m => m.id === selectedTestImageId)?.base64) && (
-                            <div className="rounded-2xl overflow-hidden border border-gray-200/80 bg-gray-50 aspect-video relative shadow-sm">
+                            <div className="rounded-2xl overflow-hidden border border-gray-200/80 bg-gray-50 dark:bg-zinc-800/60 aspect-video relative shadow-sm">
                                 <img 
                                     src={`data:image/jpeg;base64,${selectedTestImageId === 'custom' ? customTestBase64 : testMaterials.find(m => m.id === selectedTestImageId)?.base64}`} 
                                     alt="Test Target" 
@@ -1340,18 +1340,18 @@ export const PromptManagerPanel: React.FC = () => {
                     </div>
 
                     {/* PRAVÝ PANEL: Výsledky auditu */}
-                    <div className="lg:col-span-8 flex flex-col bg-gray-50/50 rounded-3xl border border-gray-100 p-6 min-h-[400px] overflow-hidden">
+                    <div className="lg:col-span-8 flex flex-col bg-gray-50/50 dark:bg-zinc-900/60 rounded-3xl border border-gray-100 dark:border-zinc-800 p-6 min-h-[400px] overflow-hidden">
                         {isPlaying ? (
                             <div className="flex-grow flex flex-col justify-center items-center py-16 space-y-4">
                                 <div className="relative">
                                     <div className="w-20 h-20 rounded-full border-4 border-lime-100 border-t-lime-600 animate-spin"></div>
-                                    <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
+                                    <div className="absolute inset-2 bg-white dark:bg-zinc-900 rounded-full flex items-center justify-center">
                                         <CpuChipIcon className="w-8 h-8 text-lime-600 animate-pulse" />
                                     </div>
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-base font-black text-gray-800">Spúšťam auditný dopyt...</p>
-                                    <p className="text-xs text-gray-400 mt-1">Gemini vyhodnocuje objektové kontúry a extrahuje cenovky.</p>
+                                    <p className="text-base font-black text-gray-800 dark:text-zinc-200">Spúšťam auditný dopyt...</p>
+                                    <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">Gemini vyhodnocuje objektové kontúry a extrahuje cenovky.</p>
                                 </div>
                             </div>
                         ) : testError ? (
@@ -1371,12 +1371,12 @@ export const PromptManagerPanel: React.FC = () => {
                                 {/* Vizualizácia s detekčným rámcom */}
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest block flex items-center gap-1.5">
+                                        <span className="text-xs font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest block flex items-center gap-1.5">
                                             <BoxIcon className="w-4 h-4 text-lime-600" /> Vizualizácia detekovaných produktov
                                         </span>
                                     </div>
 
-                                    <div className="rounded-2xl overflow-hidden border border-gray-200">
+                                    <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800">
                                         <BoundingBoxOverlay
                                             imageUrl={`data:image/jpeg;base64,${selectedTestImageId === 'custom' ? customTestBase64 : testMaterials.find(m => m.id === selectedTestImageId)?.base64}`}
                                             imageAlt="Sandbox Test Regál"
@@ -1390,18 +1390,18 @@ export const PromptManagerPanel: React.FC = () => {
 
                                 {/* Analytický prehľad */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="bg-white p-4 rounded-2xl border border-gray-100">
-                                        <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Detegované SKU ({testResult.products.length})</h5>
+                                    <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800">
+                                        <h5 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-3">Detegované SKU ({testResult.products.length})</h5>
                                         <div className="space-y-2 max-h-[150px] overflow-y-auto custom-scrollbar text-xs">
                                             {testResult.products.slice(0, 15).map((p, i) => (
                                                 <div key={i} className="flex justify-between items-center py-1.5 border-b border-gray-50">
-                                                    <span className="font-bold text-gray-700 truncate max-w-[150px]">
+                                                    <span className="font-bold text-gray-700 dark:text-zinc-300 truncate max-w-[150px]">
                                                         {p.name}
                                                     </span>
                                                     <div className="flex items-center gap-2">
                                                         {p.prices && p.prices.length > 0 && (
                                                             <span className="bg-lime-50 text-lime-800 border border-lime-100 text-[10px] px-1.5 py-0.5 rounded font-black">
-                                                                {p.prices[0].value} € {p.prices[0].type === 'PROMO' && '🏷️'}
+                                                                {p.prices[0].value}  {p.prices[0].type === 'PROMO' && '🏷️'}
                                                             </span>
                                                         )}
                                                         <span className={`text-[9px] px-1 rounded font-bold ${p.type === 'pos_material' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
@@ -1410,26 +1410,26 @@ export const PromptManagerPanel: React.FC = () => {
                                                     </div>
                                                 </div>
                                             ))}
-                                            {testResult.products.length > 15 && <p className="text-[10px] text-gray-400 italic text-center pt-2">a ďalších {testResult.products.length - 15} položiek...</p>}
+                                            {testResult.products.length > 15 && <p className="text-[10px] text-gray-400 dark:text-zinc-500 italic text-center pt-2">a ďalších {testResult.products.length - 15} položiek...</p>}
                                         </div>
                                     </div>
 
-                                    <div className="bg-white p-4 rounded-2xl border border-gray-100 space-y-3">
-                                        <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Výkon & Odhadovaná Cena</h5>
+                                    <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800 space-y-3">
+                                        <h5 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Výkon & Odhadovaná Cena</h5>
                                         {testResult.usageMetadata ? (
                                             <div className="space-y-2 text-xs">
                                                 <div className="flex justify-between">
-                                                    <span className="text-gray-500 font-medium">Vstupné tokeny (Prompt):</span>
-                                                    <span className="font-bold text-gray-800">{testResult.usageMetadata.promptTokenCount}</span>
+                                                    <span className="text-gray-500 dark:text-zinc-400 font-medium">Vstupné tokeny (Prompt):</span>
+                                                    <span className="font-bold text-gray-800 dark:text-zinc-200">{testResult.usageMetadata.promptTokenCount}</span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span className="text-gray-500 font-medium">Výstupné tokeny (Odpoveď):</span>
-                                                    <span className="font-bold text-gray-800">{testResult.usageMetadata.candidatesTokenCount}</span>
+                                                    <span className="text-gray-500 dark:text-zinc-400 font-medium">Výstupné tokeny (Odpoveď):</span>
+                                                    <span className="font-bold text-gray-800 dark:text-zinc-200">{testResult.usageMetadata.candidatesTokenCount}</span>
                                                 </div>
                                                 <div className="flex justify-between border-t border-gray-50 pt-2 text-sm font-black">
                                                     <span className="text-lime-700">Odhadovaná Cena dotazu:</span>
                                                     <span className="text-lime-600">
-                                                        {((testResult.usageMetadata.promptTokenCount / 1000000) * 0.15 + (testResult.usageMetadata.candidatesTokenCount / 1000000) * 0.60).toFixed(4)} €
+                                                        {((testResult.usageMetadata.promptTokenCount / 1000000) * 0.15 + (testResult.usageMetadata.candidatesTokenCount / 1000000) * 0.60).toFixed(4)} 
                                                     </span>
                                                 </div>
                                                 <div className="bg-lime-50/50 p-2.5 rounded-xl border border-lime-100/30 text-[9px] text-lime-700 leading-normal font-medium flex items-start gap-1.5 mt-1">
@@ -1438,19 +1438,19 @@ export const PromptManagerPanel: React.FC = () => {
                                                 </div>
                                             </div>
                                         ) : (
-                                            <p className="text-xs text-gray-400 italic">Metaúdaje o tokene nie sú k dispozícii.</p>
+                                            <p className="text-xs text-gray-400 dark:text-zinc-500 italic">Metaúdaje o tokene nie sú k dispozícii.</p>
                                         )}
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex-grow flex flex-col justify-center items-center py-20 text-center text-gray-400 space-y-4">
-                                <div className="p-4 bg-gray-100 hover:bg-gray-200 transition-colors rounded-full">
+                            <div className="flex-grow flex flex-col justify-center items-center py-20 text-center text-gray-400 dark:text-zinc-500 space-y-4">
+                                <div className="p-4 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 transition-colors rounded-full">
                                     <BoxIcon className="w-12 h-12 text-gray-300" />
                                 </div>
                                 <div className="max-w-xs">
-                                    <p className="font-bold text-gray-600 text-sm">Čakám na spustenie testu</p>
-                                    <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                                    <p className="font-bold text-gray-600 dark:text-zinc-400 text-sm">Čakám na spustenie testu</p>
+                                    <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1 leading-relaxed">
                                         Zvoľte referenčný obrázok regálu vľavo a kliknutím na tlačidlo otestujte aktuálne zadané inštrukcie v editore.
                                     </p>
                                 </div>

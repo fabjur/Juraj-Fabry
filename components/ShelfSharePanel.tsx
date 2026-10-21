@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import type { ImageState } from '../hooks/useImageAnalysis.ts';
 import { getCategoryFromName, findBestMatch, removeDateFromStoreName } from '../utils/helpers.ts';
 import { ChartPieIcon, ArrowDownTrayIcon, DocumentTextIcon } from './Icons.tsx';
@@ -6,6 +6,7 @@ import { useTranslation } from '../i18n/index.tsx';
 import { DetectedProduct, StoreInfo } from '../types.ts';
 import { exportShelfShareToXLS, exportToPDF } from '../utils/export.ts';
 import { BoundingBoxOverlay } from './BoundingBoxOverlay.tsx';
+import { generateShelfPreviewSvg } from '../utils/shelfPreview.ts';
 import { 
     Layers, 
     Grid, 
@@ -72,7 +73,17 @@ const getCategoryColorStyles = (index: number) => {
     return palettes[index % palettes.length];
 };
 
-export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) => {
+export interface ShelfSharePanelProps {
+    images: ImageState[];
+    brandClassifications?: BrandClassifications;
+    onUpdateProductPrices?: (updates: { imageId: string; productId: string; prices: PriceInfo[] }[]) => void;
+}
+
+export const ShelfSharePanel: React.FC<ShelfSharePanelProps> = ({ 
+    images, 
+    brandClassifications, 
+    onUpdateProductPrices 
+}) => {
     const [selectedChain, setSelectedChain] = useState<string>('all');
     const [selectedPhotoId, setSelectedPhotoId] = useState<string>('all');
     const [excludedPhotoIds, setExcludedPhotoIds] = useState<Set<string>>(new Set());
@@ -83,7 +94,11 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
     const [isGuideOpen, setIsGuideOpen] = useState(false);
     const [inspectedImage, setInspectedImage] = useState<ImageState | null>(null);
     const [modalHighlightedProduct, setModalHighlightedProduct] = useState<string | null>(null);
+    const [modalProductView, setModalProductView] = useState<'grouped' | 'list'>('grouped');
+    const [modalSearchTerm, setModalSearchTerm] = useState('');
     const [activeDonutSlice, setActiveDonutSlice] = useState<number | null>(null);
+    const [, setForceRender] = useState(0);
+    const requirePricesInSos = typeof window !== 'undefined' ? localStorage.getItem('salesapp_sos_require_prices') === 'true' : false;
 
     const { t } = useTranslation();
     const unassignedCategory = t('unassignedCategory');
@@ -101,6 +116,52 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
         }
         return unknownStore;
     }, [t]);
+
+    const [failedImgUrls, setFailedImgUrls] = useState<Record<string, boolean>>({});
+
+    const getSafePhotoUrl = useCallback((img: ImageState): string => {
+        if (!img) return '';
+        if (failedImgUrls[img.id]) {
+            return generateShelfPreviewSvg(img);
+        }
+        // 1. If file has binary content in memory
+        if (img.file instanceof Blob && img.file.size > 0) {
+            try {
+                return URL.createObjectURL(img.file);
+            } catch { /* ignore */ }
+        }
+        // 2. Direct imageUrl if valid and not a dead blob URL
+        if (img.imageUrl && typeof img.imageUrl === 'string' && !img.imageUrl.startsWith('blob:') && img.imageUrl.trim() !== '') {
+            return img.imageUrl;
+        }
+        // 3. Base64 data from compressedBase64 or file.data
+        const b64 = img.compressedBase64 || (img.file as any)?.data || (img as any)?.base64;
+        if (b64 && typeof b64 === 'string' && !b64.startsWith('blob:') && b64.length > 50) {
+            if (b64.startsWith('data:') || b64.startsWith('http')) return b64;
+            const mime = img.file?.type || 'image/jpeg';
+            return `data:${mime};base64,${b64}`;
+        }
+        // 4. If img.imageUrl exists (could be newly created blob URL)
+        if (img.imageUrl && typeof img.imageUrl === 'string' && img.imageUrl.trim() !== '') {
+            return img.imageUrl;
+        }
+        // 5. Fallback to generated realistic shelf preview
+        return generateShelfPreviewSvg(img);
+    }, [failedImgUrls]);
+
+    const handlePhotoError = useCallback((imgId: string, currentTarget: HTMLImageElement, img: ImageState) => {
+        const b64 = img.compressedBase64 || (img.file as any)?.data || (img as any)?.base64;
+        if (b64 && typeof b64 === 'string' && !b64.startsWith('blob:') && !currentTarget.src.startsWith('data:image/svg+xml') && !currentTarget.src.startsWith('data:image/jpeg')) {
+            const mime = img.file?.type || 'image/jpeg';
+            currentTarget.src = b64.startsWith('data:') ? b64 : `data:${mime};base64,${b64}`;
+            return;
+        }
+        const fallbackSvg = generateShelfPreviewSvg(img);
+        if (currentTarget.src !== fallbackSvg) {
+            currentTarget.src = fallbackSvg;
+        }
+        setFailedImgUrls(prev => ({ ...prev, [imgId]: true }));
+    }, []);
 
     const availableChains = useMemo(() => {
         const chains = new Set<string>();
@@ -136,6 +197,82 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
         setExcludedPhotoIds(allIds);
     };
 
+    const formatFacingCount = useCallback((count: number) => {
+        if (count === 1) return '1 facing';
+        if (count >= 2 && count <= 4) return `${count} facingy`;
+        return `${count} facingov`;
+    }, []);
+
+    // Product occurrences and facings breakdown for the inspected image in modal
+    const inspectedProductOccurrences = useMemo(() => {
+        if (!inspectedImage || !inspectedImage.analysisResult?.products) return [];
+        const prods = (inspectedImage.analysisResult.products || []).filter((p): p is DetectedProduct => !!(p && p.name));
+        const totalCount = prods.length;
+        
+        const map = new Map<string, {
+            name: string;
+            brand?: string;
+            count: number;
+            category?: string;
+            percentageOfPhoto: number;
+        }>();
+        
+        prods.forEach(p => {
+            const trimmed = p.name.trim();
+            const existingKeys = Array.from(map.keys());
+            const match = findBestMatch(trimmed, existingKeys);
+            const canonical = match || trimmed;
+            
+            const existing = map.get(canonical);
+            if (existing) {
+                existing.count += 1;
+                if (!existing.brand && p.brand) existing.brand = p.brand;
+            } else {
+                map.set(canonical, {
+                    name: canonical,
+                    brand: p.brand,
+                    count: 1,
+                    category: p.category,
+                    percentageOfPhoto: 0
+                });
+            }
+        });
+
+        const result = Array.from(map.values()).map(item => ({
+            ...item,
+            percentageOfPhoto: totalCount > 0 ? (item.count / totalCount) * 100 : 0
+        }));
+
+        return result.sort((a, b) => b.count - a.count);
+    }, [inspectedImage]);
+
+    const inspectedPhotoCountsMap = useMemo(() => {
+        const map = new Map<string, number>();
+        inspectedProductOccurrences.forEach(item => {
+            map.set(item.name.toLowerCase(), item.count);
+        });
+        return map;
+    }, [inspectedProductOccurrences]);
+
+    const filteredModalGroupedProducts = useMemo(() => {
+        if (!modalSearchTerm.trim()) return inspectedProductOccurrences;
+        const query = modalSearchTerm.toLowerCase().trim();
+        return inspectedProductOccurrences.filter(item => 
+            item.name.toLowerCase().includes(query) || 
+            (item.brand && item.brand.toLowerCase().includes(query))
+        );
+    }, [inspectedProductOccurrences, modalSearchTerm]);
+
+    const filteredModalListProducts = useMemo(() => {
+        const allProds = inspectedImage?.analysisResult?.products || [];
+        if (!modalSearchTerm.trim()) return allProds;
+        const query = modalSearchTerm.toLowerCase().trim();
+        return allProds.filter(p => 
+            (p.name || '').toLowerCase().includes(query) || 
+            (p.brand && p.brand.toLowerCase().includes(query))
+        );
+    }, [inspectedImage, modalSearchTerm]);
+
     // Filter images active for computation
     const activeImages = useMemo(() => {
         return images.filter(img => {
@@ -160,7 +297,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
         const allProducts = activeImages
             .flatMap(image => (Array.isArray(image.analysisResult?.products) ? image.analysisResult?.products : []) || [])
-            .filter((p): p is DetectedProduct => !!(p && p.name));
+            .filter((p): p is DetectedProduct => !!(p && p.name && !p.isDiscarded && p.type !== 'pos_material' && !p.isGhost));
         
         const productMap = new Map<string, { name: string; brand?: string; products: DetectedProduct[] }>();
         allProducts.forEach(product => {
@@ -260,7 +397,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
         const allProducts = activeImages
             .flatMap(image => (Array.isArray(image.analysisResult?.products) ? image.analysisResult?.products : []) || [])
-            .filter((p): p is DetectedProduct => !!(p && p.name));
+            .filter((p): p is DetectedProduct => !!(p && p.name && !p.isDiscarded && p.type !== 'pos_material' && !p.isGhost));
 
         allProducts.forEach(p => {
             const brandName = (p.brand || 'Iné / Neznáma').trim();
@@ -314,6 +451,8 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
         const uniqueBrands = brandShareData.length;
         const includedPhotosCount = activeImages.length;
         const totalPhotosCount = images.length;
+        // Check if bounding box geometry exists for area evaluation
+        const isAreaEvaluatable = totalScannedArea > 0.05 && shelfShareData.some(d => (d.area || 0) > 0);
 
         return {
             categoryCount: shelfShareData.length,
@@ -321,9 +460,11 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
             leaderShare,
             totalItemsCount,
             totalScannedArea,
+            isAreaEvaluatable,
             uniqueBrands,
             includedPhotosCount,
-            totalPhotosCount
+            totalPhotosCount,
+            denominatorText: `z celkových ${totalItemsCount} ks na regáli (100% báza vrátane nezaradených)`
         };
     }, [shelfShareData, brandShareData, activeImages, images]);
     
@@ -395,12 +536,12 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
     if (images.length === 0) {
         return (
             <div className="space-y-6 animate-fade-in text-left">
-                <div className="text-center py-20 bg-gray-50 rounded-3xl border border-dashed border-gray-200 flex flex-col items-center justify-center">
-                    <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm border border-gray-100">
+                <div className="text-center py-20 bg-gray-50 dark:bg-zinc-800/60 rounded-3xl border border-dashed border-gray-200 dark:border-zinc-800 flex flex-col items-center justify-center">
+                    <div className="bg-white dark:bg-zinc-900 w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm border border-gray-100 dark:border-zinc-800">
                         <ChartPieIcon className="w-8 h-8 text-gray-300" />
                     </div>
-                    <p className="text-lg font-black text-gray-900 mb-2">{t('noDataForShelfShare')}</p>
-                    <p className="text-xs text-gray-400 font-bold max-w-sm text-center leading-relaxed">{t('noDataForShelfShareHint')}</p>
+                    <p className="text-lg font-black text-gray-900 dark:text-zinc-100 mb-2">{t('noDataForShelfShare')}</p>
+                    <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold max-w-sm text-center leading-relaxed">{t('noDataForShelfShareHint')}</p>
                 </div>
             </div>
         );
@@ -410,20 +551,45 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
         <div ref={panelRef} className="space-y-8 printable-content animate-fade-in text-left">
             
             {/* Header portion */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print border-b border-gray-100 pb-5">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print border-b border-gray-100 dark:border-zinc-800 pb-5">
                 <div>
-                    <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3 tracking-tight">
+                    <h2 className="text-2xl font-black text-gray-900 dark:text-zinc-100 flex items-center gap-3 tracking-tight">
                         <div className="p-3 bg-gradient-to-br from-lime-100 to-emerald-100 rounded-2xl shadow-xs">
                             <PieChart className="w-6 h-6 text-lime-700" />
                         </div>
                         {t('shelfShare')}
                     </h2>
-                    <p className="text-xs text-gray-500 font-bold mt-1">
+                    <p className="text-xs text-gray-500 dark:text-zinc-400 font-bold mt-1">
                         {t('shelfShareSubTitle')}
                     </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            const current = localStorage.getItem('salesapp_sos_require_prices') === 'true';
+                            localStorage.setItem('salesapp_sos_require_prices', String(!current));
+                            window.dispatchEvent(new Event('storage'));
+                            setForceRender(prev => prev + 1);
+                        }}
+                        className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border transition-all active:scale-95 cursor-pointer ${
+                            requirePricesInSos 
+                                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
+                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                        }`}
+                        title="Vypnúť alebo zapnúť povinné vyžadovanie cien pri produktoch pre modul Shelf Share"
+                    >
+                        <Tag className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>Cenovky v SOS:</span>
+                        <span className={`font-black uppercase text-[10px] px-1.5 py-0.5 rounded ${
+                            requirePricesInSos 
+                                ? 'bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100' 
+                                : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300'
+                        }`}>
+                            {requirePricesInSos ? 'Vyžadované' : 'Vypnuté'}
+                        </span>
+                    </button>
                     <button
                         onClick={handleExportShelfShare}
                         className="flex-grow sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all bg-lime-600 text-white hover:bg-lime-700 shadow-md shadow-lime-200 active:scale-95 cursor-pointer"
@@ -444,17 +610,17 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
             </div>
 
             {/* SOURCE AUDIT PHOTOS CONTROL STRIP & VISUAL AUDIT */}
-            <div className="bg-white p-5 rounded-3xl border border-gray-200/80 shadow-xs no-print space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-200/80 dark:border-zinc-800 shadow-xs no-print space-y-4 text-zinc-900 dark:text-zinc-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-zinc-800 pb-3">
                     <div className="flex items-center gap-2.5">
                         <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
                             <Camera className="w-4 h-4" />
                         </div>
                         <div>
-                            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900">
-                                {t('sourcePhotosControl')}
+                            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-zinc-100">
+                                {t('sourcePhotosControl') || 'Zdrojové fotografie & vizuálny audit'}
                             </h3>
-                            <p className="text-[10px] text-gray-400 font-bold">
+                            <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold">
                                 {t('includedPhotos', { included: images.length - excludedPhotoIds.size, total: images.length })}
                             </p>
                         </div>
@@ -463,17 +629,17 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                     <div className="flex items-center gap-2 text-xs font-bold">
                         <button
                             onClick={selectAllPhotos}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] uppercase tracking-wider font-extrabold transition-colors cursor-pointer"
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 text-gray-700 dark:text-zinc-300 text-[10px] uppercase tracking-wider font-extrabold transition-colors cursor-pointer"
                         >
                             <CheckSquare className="w-3.5 h-3.5 text-lime-600" />
-                            {t('selectAll')}
+                            {t('selectAll') || 'Vybrať všetko'}
                         </button>
                         <button
                             onClick={deselectAllPhotos}
-                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] uppercase tracking-wider font-extrabold transition-colors cursor-pointer"
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 text-gray-700 dark:text-zinc-300 text-[10px] uppercase tracking-wider font-extrabold transition-colors cursor-pointer"
                         >
-                            <Square className="w-3.5 h-3.5 text-gray-400" />
-                            {t('deselectAll')}
+                            <Square className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-500" />
+                            {t('deselectAll') || 'Zrušiť výber'}
                         </button>
                     </div>
                 </div>
@@ -494,23 +660,19 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                                         : 'border-blue-200 bg-blue-50/20 shadow-2xs'
                                 }`}
                             >
-                                <div className="relative w-full h-24 bg-gray-200 rounded-xl overflow-hidden mb-2 border border-gray-200">
-                                    {img.imageUrl ? (
-                                        <img 
-                                            src={img.imageUrl} 
-                                            alt={img.file.name} 
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                            <Camera className="w-6 h-6" />
-                                        </div>
-                                    )}
+                                <div className="relative w-full h-24 bg-zinc-900 rounded-xl overflow-hidden mb-2 border border-zinc-200 dark:border-zinc-800 group-hover:border-blue-400 transition-colors shadow-2xs">
+                                    <img 
+                                        src={getSafePhotoUrl(img)} 
+                                        alt={img.file.name} 
+                                        className="w-full h-full object-cover"
+                                        loading="lazy"
+                                        onError={(e) => handlePhotoError(img.id, e.currentTarget, img)}
+                                    />
 
                                     {/* Facing count badge */}
                                     <span className="absolute bottom-1.5 left-1.5 bg-black/75 backdrop-blur-xs text-lime-400 text-[9px] font-black px-2 py-0.5 rounded-md flex items-center gap-1">
                                         <Box className="w-2.5 h-2.5" />
-                                        {productCount} {t('pcs')}
+                                        {productCount} {productCount === 1 ? 'facing' : productCount < 5 ? 'facingy' : 'facingov'}
                                     </span>
 
                                     {/* Toggle Inclusion Checkbox */}
@@ -537,10 +699,10 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                                 </div>
 
                                 <div className="space-y-1">
-                                    <p className="text-[11px] font-black text-gray-900 truncate" title={img.file.name}>
+                                    <p className="text-[11px] font-black text-gray-900 dark:text-zinc-100 truncate" title={img.file.name}>
                                         #{idx + 1} {img.file.name}
                                     </p>
-                                    <p className="text-[9.5px] font-bold text-gray-500 truncate" title={storeName}>
+                                    <p className="text-[9.5px] font-bold text-gray-500 dark:text-zinc-400 truncate" title={storeName}>
                                         {storeName}
                                     </p>
                                 </div>
@@ -552,16 +714,16 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
             {/* Filter Bar & Chain Filter */}
             {availableChains.length > 0 && (
-                <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs no-print flex flex-col sm:flex-row gap-4 items-center justify-between">
+                <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs no-print flex flex-col sm:flex-row gap-4 items-center justify-between">
                     <div className="w-full sm:w-1/2">
-                        <label htmlFor="chain-filter-main" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                        <label htmlFor="chain-filter-main" className="block text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-2">
                             {t('filterByChain')}
                         </label>
                         <select
                             id="chain-filter-main"
                             value={selectedChain}
                             onChange={(e) => setSelectedChain(e.target.value)}
-                            className="block w-full rounded-2xl border-gray-250 bg-gray-50/50 py-2.5 pl-4 pr-10 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold transition-all cursor-pointer"
+                            className="block w-full rounded-2xl border-gray-250 bg-gray-50/50 dark:bg-zinc-900/60 py-2.5 pl-4 pr-10 text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold transition-all cursor-pointer"
                         >
                             <option value="all">{t('allStores')}</option>
                             {availableChains.map(chain => (
@@ -571,19 +733,19 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                     </div>
 
                     <div className="w-full sm:w-1/2">
-                        <label htmlFor="photo-filter-select" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                        <label htmlFor="photo-filter-select" className="block text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-2">
                             {t('photoFilter')}
                         </label>
                         <select
                             id="photo-filter-select"
                             value={selectedPhotoId}
                             onChange={(e) => setSelectedPhotoId(e.target.value)}
-                            className="block w-full rounded-2xl border-gray-250 bg-gray-50/50 py-2.5 pl-4 pr-10 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold transition-all cursor-pointer"
+                            className="block w-full rounded-2xl border-gray-250 bg-gray-50/50 dark:bg-zinc-900/60 py-2.5 pl-4 pr-10 text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-xs font-bold transition-all cursor-pointer"
                         >
                             <option value="all">{t('allPhotos')}</option>
                             {images.map((img, idx) => (
                                 <option key={img.id} value={img.id}>
-                                    #{idx + 1} - {img.file.name} ({img.analysisResult?.products?.length || 0} fejsov)
+                                    #{idx + 1} - {img.file.name} ({img.analysisResult?.products?.length || 0} facingov)
                                 </option>
                             ))}
                         </select>
@@ -592,25 +754,25 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
             )}
 
             {/* Calculation Mode selection & Info Switcher */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 no-print bg-gray-50/50 p-4 rounded-3xl border border-gray-150/60 shadow-inner">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 no-print bg-gray-50/50 dark:bg-zinc-900/60 p-4 rounded-3xl border border-gray-150/60 shadow-inner">
                 <div className="flex items-center gap-2 max-w-md">
                     <Info className="w-4 h-4 text-lime-650 shrink-0 select-none" />
-                    <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
+                    <p className="text-[11px] text-gray-500 dark:text-zinc-400 font-bold leading-relaxed">
                         {t('shelfShareDescription', { mode: shareModeText, context: descriptionText })}
                     </p>
                 </div>
                 
-                <div className="bg-gray-100/80 p-1.5 rounded-2xl flex w-full sm:w-80 border border-gray-150 shadow-2xs shrink-0 select-none">
+                <div className="bg-gray-100/80 p-1.5 rounded-2xl flex w-full sm:w-80 border border-gray-150 dark:border-zinc-800 shadow-2xs shrink-0 select-none">
                     <button
                         onClick={() => setShareMode('area')}
-                        className={`w-1/2 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${shareMode === 'area' ? 'bg-white text-lime-700 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                        className={`w-1/2 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${shareMode === 'area' ? 'bg-white dark:bg-zinc-900 text-lime-700 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         aria-pressed={shareMode === 'area'}
                     >
                         {t('shareByArea')}
                     </button>
                     <button
                         onClick={() => setShareMode('count')}
-                        className={`w-1/2 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${shareMode === 'count' ? 'bg-white text-lime-700 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                        className={`w-1/2 rounded-xl py-2.5 text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${shareMode === 'count' ? 'bg-white dark:bg-zinc-900 text-lime-700 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         aria-pressed={shareMode === 'count'}
                     >
                         {t('shareByCount')}
@@ -651,15 +813,15 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
                 {isGuideOpen && (
                     <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-lime-200/30 text-xs">
-                        <div className="bg-white p-4 rounded-xl border border-lime-100/45 shadow-3xs">
+                        <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-lime-100/45 shadow-3xs">
                             <h4 className="font-extrabold text-lime-900 uppercase tracking-wider mb-1">{t('areaMetricTitle')}</h4>
-                            <p className="text-gray-500 leading-relaxed font-semibold">
+                            <p className="text-gray-500 dark:text-zinc-400 leading-relaxed font-semibold">
                                 {t('areaMetricDesc')}
                             </p>
                         </div>
-                        <div className="bg-white p-4 rounded-xl border border-lime-100/45 shadow-3xs">
+                        <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-lime-100/45 shadow-3xs">
                             <h4 className="font-extrabold text-lime-900 uppercase tracking-wider mb-1">{t('countMetricTitle')}</h4>
-                            <p className="text-gray-500 leading-relaxed font-semibold">
+                            <p className="text-gray-500 dark:text-zinc-400 leading-relaxed font-semibold">
                                 {t('countMetricDesc')}
                             </p>
                         </div>
@@ -671,16 +833,16 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
             {stats && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-left">
                     {/* 1. Category Count Card */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex flex-col justify-between">
+                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
                         <div className="flex justify-between items-start">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{t('activeCategories')}</span>
-                            <div className="p-1.5 bg-gray-50 text-gray-500 rounded-lg border border-gray-150">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-500">{t('activeCategories')}</span>
+                            <div className="p-1.5 bg-gray-50 dark:bg-zinc-800/60 text-gray-500 dark:text-zinc-400 rounded-lg border border-gray-150 dark:border-zinc-800">
                                 <Layers className="w-3.5 h-3.5" />
                             </div>
                         </div>
                         <div className="mt-4">
-                            <span className="text-3xl font-black text-gray-900">{stats.categoryCount}</span>
-                            <p className="text-[11px] text-gray-500 font-bold mt-1">
+                            <span className="text-3xl font-black text-gray-900 dark:text-zinc-100">{stats.categoryCount}</span>
+                            <p className="text-[11px] text-gray-500 dark:text-zinc-400 font-bold mt-1">
                                 {t('monitoredSections')}
                             </p>
                         </div>
@@ -705,51 +867,51 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                     </div>
 
                     {/* 3. Total Items Counts Card */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex flex-col justify-between">
+                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
                         <div className="flex justify-between items-start">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{t('totalFacingCount')}</span>
-                            <div className="p-1.5 bg-gray-50 text-gray-500 rounded-lg border border-gray-150">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-500">{t('totalFacingCount')}</span>
+                            <div className="p-1.5 bg-gray-50 dark:bg-zinc-800/60 text-gray-500 dark:text-zinc-400 rounded-lg border border-gray-150 dark:border-zinc-800">
                                 <Grid className="w-3.5 h-3.5" />
                             </div>
                         </div>
                         <div className="mt-4">
-                            <span className="text-3xl font-black text-gray-900">{stats.totalItemsCount} {t('pcs')}</span>
-                            <p className="text-[11px] text-gray-500 font-bold mt-1">
+                            <span className="text-3xl font-black text-gray-900 dark:text-zinc-100">{stats.totalItemsCount} {t('pcs')}</span>
+                            <p className="text-[11px] text-gray-500 dark:text-zinc-400 font-bold mt-1">
                                 {t('detectedFacings')}
                             </p>
                         </div>
                     </div>
 
                     {/* 4. Brand Diversity */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex flex-col justify-between">
+                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
                         <div className="flex justify-between items-start">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{t('uniqueBrandsCount')}</span>
-                            <div className="p-1.5 bg-gray-50 text-gray-500 rounded-lg border border-gray-150">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-500">{t('uniqueBrandsCount')}</span>
+                            <div className="p-1.5 bg-gray-50 dark:bg-zinc-800/60 text-gray-500 dark:text-zinc-400 rounded-lg border border-gray-150 dark:border-zinc-800">
                                 <Tag className="w-3.5 h-3.5" />
                             </div>
                         </div>
                         <div className="mt-4">
-                            <span className="text-3xl font-black text-gray-900">{stats.uniqueBrands}</span>
-                            <p className="text-[11px] text-gray-500 font-bold mt-1">
+                            <span className="text-3xl font-black text-gray-900 dark:text-zinc-100">{stats.uniqueBrands}</span>
+                            <p className="text-[11px] text-gray-500 dark:text-zinc-400 font-bold mt-1">
                                 {t('brandName')}
                             </p>
                         </div>
                     </div>
 
                     {/* 5. Total Area metrics */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex flex-col justify-between">
+                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
                         <div className="flex justify-between items-start">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{t('scannedArea')}</span>
-                            <div className="p-1.5 bg-gray-50 text-gray-500 rounded-lg border border-gray-150">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-500">{t('scannedArea')}</span>
+                            <div className="p-1.5 bg-gray-50 dark:bg-zinc-800/60 text-gray-500 dark:text-zinc-400 rounded-lg border border-gray-150 dark:border-zinc-800">
                                 <Maximize2 className="w-3.5 h-3.5" />
                             </div>
                         </div>
                         <div className="mt-4 font-bold">
-                            <span className="text-xl font-black text-gray-900">
-                                {stats.totalScannedArea > 0 ? `${(stats.totalScannedArea / 1000).toFixed(0)}k px²` : '—'}
+                            <span className="text-base sm:text-lg font-black text-gray-900 dark:text-zinc-100 block truncate">
+                                {stats.isAreaEvaluatable ? `${Math.round(stats.totalScannedArea * 100)}% zorného poľa` : 'Nedá sa vyhodnotiť'}
                             </span>
                             <p className="text-[11px] text-gray-550 font-semibold mt-1.5">
-                                {t('totalBoundingPixels')}
+                                {stats.isAreaEvaluatable ? 'Plošná geometria regálu' : 'Chýbajú bounding box súradnice'}
                             </p>
                         </div>
                     </div>
@@ -757,13 +919,13 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
             )}
 
             {/* MULTI-VIEW TAB NAVIGATION */}
-            <div className="flex items-center gap-2 border-b border-gray-200 pb-2 no-print">
+            <div className="flex items-center gap-2 border-b border-gray-200 dark:border-zinc-800 pb-2 no-print">
                 <button
                     onClick={() => setActiveTab('planogram')}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
                         activeTab === 'planogram'
                             ? 'bg-lime-600 text-white shadow-md shadow-lime-200'
-                            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                            : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 border border-gray-200 dark:border-zinc-700'
                     }`}
                 >
                     <Sparkles className="w-4 h-4" />
@@ -775,7 +937,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
                         activeTab === 'donut'
                             ? 'bg-lime-600 text-white shadow-md shadow-lime-200'
-                            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                            : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 border border-gray-200 dark:border-zinc-700'
                     }`}
                 >
                     <PieChart className="w-4 h-4" />
@@ -787,7 +949,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
                         activeTab === 'brands'
                             ? 'bg-lime-600 text-white shadow-md shadow-lime-200'
-                            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                            : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 border border-gray-200 dark:border-zinc-700'
                     }`}
                 >
                     <Award className="w-4 h-4" />
@@ -797,24 +959,24 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
             {/* TAB 1: DIGITAL TWIN SHELF PLANOGRAM REPRESENTATION */}
             {activeTab === 'planogram' && (
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs space-y-3.5">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs space-y-3.5">
                     <div className="flex justify-between items-center px-1 select-none">
                         <div>
-                            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-1.5">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-zinc-100 flex items-center gap-1.5">
                                 <Sparkles className="w-4 h-4 text-lime-600 shrink-0" />
                                 {t('shelfLayoutBlueprint')}
                             </h3>
-                            <p className="text-[11px] text-gray-400 font-bold mt-0.5">
+                            <p className="text-[11px] text-gray-400 dark:text-zinc-500 font-bold mt-0.5">
                                 {t('shelfLayoutDesc')}
                             </p>
                         </div>
-                        <span className="text-[9px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-gray-100 text-gray-500 rounded-lg border border-gray-150 shrink-0">
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold px-2.5 py-1 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-lg border border-gray-150 dark:border-zinc-800 shrink-0">
                             {shareMode === 'area' ? t('calcFromArea') : t('calcFromCount')}
                         </span>
                     </div>
 
                     {/* Simulated Stacked Shelf Rack Row */}
-                    <div className="w-full bg-gray-100 p-2.5 rounded-2xl border border-gray-150/80 flex gap-1 items-stretch min-h-[60px] overflow-hidden shadow-inner">
+                    <div className="w-full bg-gray-100 dark:bg-zinc-800 p-2.5 rounded-2xl border border-gray-150/80 flex gap-1 items-stretch min-h-[60px] overflow-hidden shadow-inner">
                         {shelfShareData.map((item, index) => {
                             const style = getCategoryColorStyles(index);
                             const shareVal = item.share;
@@ -838,11 +1000,11 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                                     {/* Rich Tooltip on Hover */}
                                     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 scale-0 group-hover:scale-100 transition-all bg-gray-900 text-white border border-gray-800 text-[10.5px] p-3 rounded-xl whitespace-nowrap z-50 shadow-xl pointer-events-none flex flex-col gap-1">
                                         <p className="font-extrabold tracking-wide uppercase text-lime-400">{item.category}</p>
-                                        <div className="flex justify-between gap-6 font-bold text-gray-400 text-[10px] border-t border-gray-800 pt-1.5 mt-1">
+                                        <div className="flex justify-between gap-6 font-bold text-gray-400 dark:text-zinc-500 text-[10px] border-t border-gray-800 pt-1.5 mt-1">
                                             <span>{t('distributionShare')}: <strong className="text-white">{shareVal.toFixed(1)}%</strong></span>
                                             <span>{t('quantity')}: <strong className="text-white">{item.count} {t('pcs')}</strong></span>
                                         </div>
-                                        <p className="text-[9px] font-bold text-gray-500 mt-0.5">{t('clickToOpenDetail')}</p>
+                                        <p className="text-[9px] font-bold text-gray-500 dark:text-zinc-400 mt-0.5">{t('clickToOpenDetail')}</p>
                                     </div>
                                 </div>
                             );
@@ -853,7 +1015,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
             {/* TAB 2: CATEGORY DONUT CHART */}
             {activeTab === 'donut' && (
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                     {/* SVG Interactive Donut Chart */}
                     <div className="flex flex-col items-center justify-center relative">
                         <svg viewBox="0 0 200 200" className="w-64 h-64 drop-shadow-md">
@@ -874,10 +1036,10 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                             {activeDonutSlice !== null && donutSlices[activeDonutSlice] ? (
                                 <div className="text-center animate-fade-in">
-                                    <span className="text-[9px] font-black uppercase text-gray-400 block truncate max-w-[100px]">
+                                    <span className="text-[9px] font-black uppercase text-gray-400 dark:text-zinc-500 block truncate max-w-[100px]">
                                         {donutSlices[activeDonutSlice].category}
                                     </span>
-                                    <span className="text-xl font-black text-gray-900">
+                                    <span className="text-xl font-black text-gray-900 dark:text-zinc-100">
                                         {donutSlices[activeDonutSlice].share.toFixed(1)}%
                                     </span>
                                     <span className="text-[9px] font-bold text-lime-600 block">
@@ -886,10 +1048,10 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                                 </div>
                             ) : (
                                 <div className="text-center">
-                                    <span className="text-[9px] font-black uppercase text-gray-400 block">
+                                    <span className="text-[9px] font-black uppercase text-gray-400 dark:text-zinc-500 block">
                                         {t('activeCategories')}
                                     </span>
-                                    <span className="text-2xl font-black text-gray-900">
+                                    <span className="text-2xl font-black text-gray-900 dark:text-zinc-100">
                                         {shelfShareData.length}
                                     </span>
                                 </div>
@@ -899,7 +1061,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
                     {/* Donut Legend List */}
                     <div className="space-y-2 max-h-64 overflow-y-auto pr-2 scrollbar-thin">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-gray-400 mb-3">
+                        <h4 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">
                             {t('categoryDistribution')}
                         </h4>
                         {shelfShareData.map((item, idx) => {
@@ -920,15 +1082,15 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                                 >
                                     <div className="flex items-center gap-2.5 min-w-0">
                                         <div className={`w-3.5 h-3.5 rounded-md shrink-0 ${style.bg}`} />
-                                        <span className="text-xs font-bold text-gray-800 truncate">
+                                        <span className="text-xs font-bold text-gray-800 dark:text-zinc-200 truncate">
                                             {item.category}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-3 shrink-0">
-                                        <span className="text-xs font-black text-gray-900">
+                                        <span className="text-xs font-black text-gray-900 dark:text-zinc-100">
                                             {item.share.toFixed(1)}%
                                         </span>
-                                        <span className="text-[10px] font-extrabold text-gray-400 bg-white px-2 py-0.5 rounded-md border border-gray-150">
+                                        <span className="text-[10px] font-extrabold text-gray-400 dark:text-zinc-500 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded-md border border-gray-150 dark:border-zinc-800">
                                             {item.count} {t('pcs')}
                                         </span>
                                     </div>
@@ -941,14 +1103,14 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
             {/* TAB 3: BRAND SHARE LEADERBOARD */}
             {activeTab === 'brands' && (
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs space-y-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-100 pb-4">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-100 dark:border-zinc-800 pb-4">
                         <div>
-                            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-2">
+                            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-zinc-100 flex items-center gap-2">
                                 <Award className="w-4 h-4 text-amber-500" />
                                 {t('brandShareTitle')}
                             </h3>
-                            <p className="text-[11px] text-gray-400 font-bold mt-0.5">
+                            <p className="text-[11px] text-gray-400 dark:text-zinc-500 font-bold mt-0.5">
                                 {t('topBrandsRank')}
                             </p>
                         </div>
@@ -960,7 +1122,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="border-b border-gray-150 text-[10px] font-black uppercase tracking-wider text-gray-400 bg-gray-50/50">
+                                <tr className="border-b border-gray-150 dark:border-zinc-800 text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 bg-gray-50/50 dark:bg-zinc-900/60">
                                     <th className="py-3 px-4 w-16">#</th>
                                     <th className="py-3 px-4">{t('brandName')}</th>
                                     <th className="py-3 px-4">{t('brandCategory')}</th>
@@ -968,31 +1130,31 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                                     <th className="py-3 px-4 text-right">{t('brandShelfShare')}</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100 text-xs font-bold text-gray-800">
+                            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800 text-xs font-bold text-gray-800 dark:text-zinc-200">
                                 {brandShareData.map((b, idx) => {
                                     const rankBadge = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
                                     
                                     return (
                                         <tr key={`brand-${b.brand}-${idx}`} className="hover:bg-gray-50/80 transition-colors">
-                                            <td className="py-3.5 px-4 font-black text-sm text-gray-500">
+                                            <td className="py-3.5 px-4 font-black text-sm text-gray-500 dark:text-zinc-400">
                                                 {rankBadge}
                                             </td>
                                             <td className="py-3.5 px-4">
-                                                <span className="font-extrabold text-gray-900 text-sm">
+                                                <span className="font-extrabold text-gray-900 dark:text-zinc-100 text-sm">
                                                     {b.brand}
                                                 </span>
                                             </td>
-                                            <td className="py-3.5 px-4 text-gray-500 text-xs font-medium">
+                                            <td className="py-3.5 px-4 text-gray-500 dark:text-zinc-400 text-xs font-medium">
                                                 {b.category}
                                             </td>
                                             <td className="py-3.5 px-4 text-center">
-                                                <span className="bg-gray-100 text-gray-800 px-2.5 py-1 rounded-lg text-xs font-black">
+                                                <span className="bg-gray-100 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 px-2.5 py-1 rounded-lg text-xs font-black">
                                                     {b.count} {t('pcs')}
                                                 </span>
                                             </td>
                                             <td className="py-3.5 px-4 text-right">
                                                 <div className="flex items-center justify-end gap-3">
-                                                    <div className="w-24 bg-gray-100 h-2 rounded-full overflow-hidden hidden sm:block">
+                                                    <div className="w-24 bg-gray-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden hidden sm:block">
                                                         <div 
                                                             className="h-full bg-lime-500 rounded-full"
                                                             style={{ width: `${b.brandShare}%` }}
@@ -1013,10 +1175,10 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
             )}
 
             {/* DYNAMIC SEARCH AND ADVANCED CATEGORY FILTER Segment - NO-PRINT */}
-            <div className="bg-gray-50 p-5 rounded-[2rem] border border-gray-150/60 shadow-inner no-print flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="bg-gray-50 dark:bg-zinc-800/60 p-5 rounded-[2rem] border border-gray-150/60 shadow-inner no-print flex flex-col sm:flex-row gap-4 items-center justify-between">
                 <div>
                     <span className="text-[9px] uppercase tracking-wider font-extrabold block text-gray-450 mb-1">{t('filteringAndSearch')}</span>
-                    <h4 className="font-black text-xs text-gray-800">
+                    <h4 className="font-black text-xs text-gray-800 dark:text-zinc-200">
                         {t('showingCatsOf', { count: filteredShareData.length, total: shelfShareData.length })}
                     </h4>
                 </div>
@@ -1027,13 +1189,13 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                         placeholder={t('searchCategoryOrProduct')}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-white border border-gray-250 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-gray-850 placeholder-gray-450 focus:outline-none focus:ring-2 focus:ring-lime-500 transition-all border-dashed"
+                        className="w-full bg-white dark:bg-zinc-900 border border-gray-250 rounded-2xl py-2.5 pl-10 pr-4 text-xs font-bold text-gray-850 placeholder-gray-450 focus:outline-none focus:ring-2 focus:ring-lime-500 transition-all border-dashed"
                     />
-                    <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+                    <Search className="w-4 h-4 text-gray-400 dark:text-zinc-500 absolute left-3.5 top-3" />
                     {searchTerm && (
                         <button
                             onClick={() => setSearchTerm('')}
-                            className="absolute right-3.5 top-2.5 text-gray-400 hover:text-gray-750 font-bold text-[10px] bg-gray-100 px-2 py-0.5 rounded-lg cursor-pointer"
+                            className="absolute right-3.5 top-2.5 text-gray-400 dark:text-zinc-500 hover:text-gray-750 font-bold text-[10px] bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-lg cursor-pointer"
                         >
                             {t('clearSelection')}
                         </button>
@@ -1052,7 +1214,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                         <div 
                             key={`cat-card-${item.category}`} 
                             id={`cat-card-${item.category}`}
-                            className={`bg-white rounded-[1.8rem] border transition-all duration-300 shadow-2xs group flex flex-col overflow-hidden ${isExpanded ? 'ring-1 ring-lime-400/50 border-lime-200' : 'border-gray-100'}`}
+                            className={`bg-white dark:bg-zinc-900 rounded-[1.8rem] border transition-all duration-300 shadow-2xs group flex flex-col overflow-hidden ${isExpanded ? 'ring-1 ring-lime-400/50 border-lime-200' : 'border-gray-100'}`}
                         >
                             {/* Accordion Row Header */}
                             <div 
@@ -1064,10 +1226,10 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                                         <FolderOpen className={`w-5 h-5 ${style.text}`} />
                                     </div>
                                     <div className="min-w-0">
-                                        <h4 className="font-black text-gray-900 text-sm uppercase tracking-wider truncate">
+                                        <h4 className="font-black text-gray-900 dark:text-zinc-100 text-sm uppercase tracking-wider truncate">
                                             {item.category}
                                         </h4>
-                                        <p className="text-[11px] text-gray-400 font-bold mt-0.5 flex items-center gap-1.5">
+                                        <p className="text-[11px] text-gray-400 dark:text-zinc-500 font-bold mt-0.5 flex items-center gap-1.5">
                                             <span>{t('containsSku', { count: item.constituents.length })}</span>
                                             <span>•</span>
                                             <span>{t('totalPcs', { count: item.count })}</span>
@@ -1077,13 +1239,13 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
                                 <div className="flex items-center justify-between md:justify-end gap-5 w-full md:w-auto border-t border-gray-100/50 md:border-0 pt-3 md:pt-0">
                                     <div className="text-left md:text-right">
-                                        <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">{t('capturedShare')}</span>
+                                        <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 block">{t('capturedShare')}</span>
                                         <span className={`text-xl font-black ${style.text}`}>
                                             {item.share.toFixed(1)}%
                                         </span>
                                     </div>
 
-                                    <div className="w-24 bg-gray-100 h-2.5 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                                    <div className="w-24 bg-gray-100 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden shrink-0 hidden sm:block">
                                         <div 
                                             className={`h-full rounded-full ${style.bg}`}
                                             style={{ width: `${item.share}%` }}
@@ -1091,10 +1253,10 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[9px] font-black uppercase text-gray-400 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 shrink-0">
+                                        <span className="text-[9px] font-black uppercase text-gray-400 dark:text-zinc-500 bg-gray-50 dark:bg-zinc-800/60 px-2 py-1 rounded-lg border border-gray-100 dark:border-zinc-800 shrink-0">
                                             {isExpanded ? t('hideList') : t('expandProducts')}
                                         </span>
-                                        <div className="p-1 px-1.5 bg-gray-100 rounded-lg text-gray-500">
+                                        <div className="p-1 px-1.5 bg-gray-100 dark:bg-zinc-800 rounded-lg text-gray-500 dark:text-zinc-400">
                                             {isExpanded ? (
                                                 <ChevronUp className="w-4 h-4 hover:translate-y-0.5" />
                                             ) : (
@@ -1107,9 +1269,9 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
                             {/* Detailed breakdown sub-list section */}
                             {isExpanded && (
-                                <div className="px-6 pb-6 pt-1 border-t border-dashed border-gray-100 bg-gray-50/20 text-left">
+                                <div className="px-6 pb-6 pt-1 border-t border-dashed border-gray-100 dark:border-zinc-800 bg-gray-50/20 text-left">
                                     
-                                    <div className="mb-4 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-gray-400 border-b border-gray-100 pb-2.5">
+                                    <div className="mb-4 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 border-b border-gray-100 dark:border-zinc-800 pb-2.5">
                                         <span>{t('itemIdentifiedProduct')}</span>
                                         <div className="flex items-center gap-6">
                                             <span>{t('categoryShareLabel')}</span>
@@ -1121,20 +1283,20 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                                         {item.constituents.map((c, i) => (
                                             <div 
                                                 key={`constituent-${c.name}-${i}`}
-                                                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-3xs hover:border-gray-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                                                className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-3xs hover:border-gray-300 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                                             >
                                                 <div className="min-w-0">
                                                     <div className="flex items-center gap-2.5">
-                                                        <span className="text-xs font-black text-gray-800 leading-snug tracking-tight">
+                                                        <span className="text-xs font-black text-gray-800 dark:text-zinc-200 leading-snug tracking-tight">
                                                             {c.name}
                                                         </span>
                                                         {c.brand && (
-                                                            <span className="text-[9px] uppercase font-black bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
+                                                            <span className="text-[9px] uppercase font-black bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 px-2 py-0.5 rounded-md border border-slate-200 dark:border-zinc-800">
                                                                 {c.brand}
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <p className="text-[10px] text-gray-400 font-bold mt-1 flex items-center gap-2">
+                                                    <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold mt-1 flex items-center gap-2">
                                                         <span>{t('pcsCountLabel', { count: c.count })}</span>
                                                         <span>•</span>
                                                         <span>{t('measuredAreaLabel', { area: (c.area / 1000).toFixed(1) })}</span>
@@ -1143,24 +1305,24 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
                                                 <div className="flex items-center justify-between sm:justify-end gap-6 border-t border-gray-50 pt-2.5 sm:pt-0 sm:border-0">
                                                     <div className="space-y-1">
-                                                        <span className="text-[9px] uppercase font-black text-gray-400 tracking-wider block sm:text-right">
+                                                        <span className="text-[9px] uppercase font-black text-gray-400 dark:text-zinc-500 tracking-wider block sm:text-right">
                                                             {t('shareWithinCategory')}
                                                         </span>
                                                         <div className="flex items-center gap-2.5 justify-end">
-                                                            <div className="w-20 bg-gray-100 h-2 rounded-full overflow-hidden hidden sm:block">
+                                                            <div className="w-20 bg-gray-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden hidden sm:block">
                                                                 <div 
                                                                     className={`h-full rounded-full ${style.bg}`}
                                                                     style={{ width: `${c.categoryShare}%` }}
                                                                 />
                                                             </div>
-                                                            <span className="text-xs font-extrabold text-gray-700 shrink-0">
+                                                            <span className="text-xs font-extrabold text-gray-700 dark:text-zinc-300 shrink-0">
                                                                 {c.categoryShare.toFixed(1)}%
                                                             </span>
                                                         </div>
                                                     </div>
 
-                                                    <div className="text-right border-l border-gray-150 pl-4">
-                                                        <span className="text-[9px] uppercase font-black text-gray-400 tracking-wider block">
+                                                    <div className="text-right border-l border-gray-150 dark:border-zinc-800 pl-4">
+                                                        <span className="text-[9px] uppercase font-black text-gray-400 dark:text-zinc-500 tracking-wider block">
                                                             {t('totalShareLabel')}
                                                         </span>
                                                         <span className="text-sm font-black text-lime-600">
@@ -1178,12 +1340,12 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                 })}
 
                 {filteredShareData.length === 0 && (
-                    <div className="text-center py-16 bg-gray-50 rounded-3xl border border-dashed border-gray-200 flex flex-col items-center justify-center">
-                        <div className="bg-white w-14 h-14 rounded-full flex items-center justify-center mb-4 shadow-3xs border border-gray-100">
+                    <div className="text-center py-16 bg-gray-50 dark:bg-zinc-800/60 rounded-3xl border border-dashed border-gray-200 dark:border-zinc-800 flex flex-col items-center justify-center">
+                        <div className="bg-white dark:bg-zinc-900 w-14 h-14 rounded-full flex items-center justify-center mb-4 shadow-3xs border border-gray-100 dark:border-zinc-800">
                             <Info className="w-6 h-6 text-gray-300" />
                         </div>
-                        <p className="text-sm font-black text-gray-800">{t('noCategoriesMatch')}</p>
-                        <p className="text-xs text-gray-400 font-bold mt-1 max-w-xs">{t('tryDifferentTerm')}</p>
+                        <p className="text-sm font-black text-gray-800 dark:text-zinc-200">{t('noCategoriesMatch')}</p>
+                        <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold mt-1 max-w-xs">{t('tryDifferentTerm')}</p>
                     </div>
                 )}
             </div>
@@ -1191,7 +1353,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
             {/* LIGHTBOX MODAL: SOURCE AUDIT PHOTO INSPECTOR */}
             {inspectedImage && (
                 <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-fade-in no-print">
-                    <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-gray-800">
+                    <div className="bg-white dark:bg-zinc-900 rounded-3xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-gray-800">
                         {/* Modal Header */}
                         <div className="p-4 sm:p-5 bg-gray-900 text-white flex items-center justify-between border-b border-gray-800">
                             <div className="flex items-center gap-3 min-w-0">
@@ -1202,10 +1364,10 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                                     <h3 className="font-extrabold text-sm truncate" title={inspectedImage.file.name}>
                                         {inspectedImage.file.name}
                                     </h3>
-                                    <p className="text-[10px] text-gray-400 font-bold flex items-center gap-2">
+                                    <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold flex items-center gap-2">
                                         <span>{getStoreIdentifier(inspectedImage.analysisResult?.storeInfo)}</span>
                                         <span>•</span>
-                                        <span>{inspectedImage.analysisResult?.products?.length || 0} fejsov</span>
+                                        <span>{inspectedImage.analysisResult?.products?.length || 0} facingov</span>
                                     </p>
                                 </div>
                             </div>
@@ -1234,7 +1396,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
 
                                 <button
                                     onClick={() => setInspectedImage(null)}
-                                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
+                                    className="p-2 text-gray-400 dark:text-zinc-500 hover:text-white hover:bg-gray-800 rounded-xl transition-colors cursor-pointer"
                                 >
                                     <X className="w-5 h-5" />
                                 </button>
@@ -1245,74 +1407,182 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-950 text-white">
                             {/* Left Col: Interactive Bounding Box Overlay */}
                             <div className="lg:col-span-2 relative bg-black rounded-2xl overflow-hidden border border-gray-800 flex flex-col justify-center min-h-[400px]">
-                                {inspectedImage.imageUrl ? (
+                                {getSafePhotoUrl(inspectedImage) ? (
                                     <BoundingBoxOverlay
-                                        imageUrl={inspectedImage.imageUrl}
+                                        imageUrl={getSafePhotoUrl(inspectedImage)}
                                         imageAlt={inspectedImage.file.name}
                                         products={inspectedImage.analysisResult?.products || []}
                                         highlightedProductName={modalHighlightedProduct}
+                                        brandClassifications={brandClassifications}
                                         onSelectProduct={(p) => setModalHighlightedProduct(p.name)}
+                                        onUpdateProductPrices={onUpdateProductPrices ? (updates) => {
+                                            onUpdateProductPrices(updates.map(u => ({ ...u, imageId: inspectedImage.id })));
+                                        } : undefined}
                                         showControls={true}
                                         allowZoomPan={true}
                                         allowFullScreen={false}
+                                        isSOSMode={true}
                                     />
                                 ) : (
-                                    <p className="text-gray-500 font-bold text-xs text-center p-8">{t('noImagePreview')}</p>
+                                    <p className="text-gray-500 dark:text-zinc-400 font-bold text-xs text-center p-8">{t('noImagePreview')}</p>
                                 )}
                             </div>
 
-                            {/* Right Col: Detected Products Breakdown List */}
-                            <div className="space-y-4 flex flex-col justify-between">
-                                <div>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h4 className="text-xs font-black uppercase tracking-wider text-lime-400 flex items-center gap-1.5">
-                                            <Box className="w-4 h-4" />
-                                            {t('detectedProductsInPhoto')} ({inspectedImage.analysisResult?.products?.length || 0})
-                                        </h4>
-                                        {modalHighlightedProduct && (
+                            {/* Right Col: Detected Products Breakdown List with Facing Counts */}
+                            <div className="space-y-3 flex flex-col justify-between">
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h4 className="text-xs font-black uppercase tracking-wider text-lime-400 flex items-center gap-1.5">
+                                                <Box className="w-4 h-4" />
+                                                Produkty na snímke
+                                            </h4>
+                                            <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold mt-0.5">
+                                                {inspectedProductOccurrences.length} druhov • {inspectedImage.analysisResult?.products?.length || 0} facingov
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-1 bg-gray-900 p-0.5 rounded-lg border border-gray-800">
                                             <button
-                                                onClick={() => setModalHighlightedProduct(null)}
-                                                className="text-[10px] text-gray-400 hover:text-white underline font-bold"
+                                                type="button"
+                                                onClick={() => setModalProductView('grouped')}
+                                                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                                    modalProductView === 'grouped' ? 'bg-lime-500 text-gray-950 font-black shadow-xs' : 'text-gray-400 hover:text-white'
+                                                }`}
+                                                title="Zoskupiť rovnaké produkty a zobraziť počet facingov"
                                             >
-                                                Zrušiť výber
+                                                Zoskupiť
                                             </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setModalProductView('list')}
+                                                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                                                    modalProductView === 'list' ? 'bg-lime-500 text-gray-950 font-black shadow-xs' : 'text-gray-400 hover:text-white'
+                                                }`}
+                                                title={t('showAllDetectedFacingsTooltip') || 'Show all detected facings individually'}
+                                            >
+                                                {t('all') || 'All'} ({inspectedImage.analysisResult?.products?.length || 0})
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Search & Active Highlight Bar */}
+                                    <div className="space-y-2">
+                                        <div className="relative">
+                                            <Search className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                            <input 
+                                                type="text" 
+                                                value={modalSearchTerm} 
+                                                onChange={(e) => setModalSearchTerm(e.target.value)} 
+                                                placeholder={t('filterInProducts') || 'Filter products...'}
+                                                className="w-full bg-gray-900 text-white text-xs pl-8 pr-7 py-1.5 rounded-xl border border-gray-800 focus:outline-none focus:border-lime-500 text-[11px]"
+                                            />
+                                            {modalSearchTerm && (
+                                                <button onClick={() => setModalSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 dark:text-zinc-400 hover:text-white text-xs">✕</button>
+                                            )}
+                                        </div>
+
+                                        {modalHighlightedProduct && (
+                                            <div className="flex items-center justify-between bg-lime-950/60 border border-lime-500/40 px-2.5 py-1.5 rounded-xl text-xs">
+                                                <span className="text-lime-300 font-bold truncate text-[11px] flex items-center gap-1.5">
+                                                    <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse"></span>
+                                                    Zvýraznené: &ldquo;{modalHighlightedProduct}&rdquo;
+                                                </span>
+                                                <button
+                                                    onClick={() => setModalHighlightedProduct(null)}
+                                                    className="text-[10px] text-gray-300 hover:text-white underline font-bold shrink-0 ml-2 cursor-pointer"
+                                                >
+                                                    Zrušiť
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
 
-                                    <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1 scrollbar-thin">
-                                        {inspectedImage.analysisResult?.products?.map((p, pIdx) => {
-                                            const isSelected = modalHighlightedProduct === p.name;
-                                            return (
-                                                <div 
-                                                    key={`p-${p.id || pIdx}`}
-                                                    onClick={() => setModalHighlightedProduct(isSelected ? null : p.name)}
-                                                    onMouseEnter={() => setModalHighlightedProduct(p.name)}
-                                                    className={`p-3 rounded-xl border text-xs flex justify-between items-center cursor-pointer transition-all ${
-                                                        isSelected 
-                                                            ? 'bg-lime-950/60 border-lime-500 ring-2 ring-lime-400/50 shadow-md' 
-                                                            : 'bg-gray-900 border-gray-800 hover:border-gray-700 hover:bg-gray-850'
-                                                    }`}
-                                                >
-                                                    <div className="min-w-0 pr-2">
-                                                        <p className={`font-extrabold truncate ${isSelected ? 'text-lime-300' : 'text-white'}`}>{p.name}</p>
-                                                        {p.brand && (
-                                                            <span className="text-[9px] font-black uppercase text-gray-400 bg-gray-800 px-1.5 py-0.5 rounded mt-0.5 inline-block">
-                                                                {p.brand}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {p.confidence && (
-                                                        <span className="text-[10px] font-bold text-lime-400 bg-lime-500/10 px-2 py-0.5 rounded-md border border-lime-500/20 shrink-0">
-                                                            {(p.confidence * 100).toFixed(0)}% AI
-                                                        </span>
-                                                    )}
+                                    {/* Product List with Facing Counts (No % AI) */}
+                                    <div className="space-y-2 max-h-[42vh] overflow-y-auto pr-1 scrollbar-thin">
+                                        {modalProductView === 'grouped' ? (
+                                            filteredModalGroupedProducts.length === 0 ? (
+                                                <div className="p-6 text-center text-xs text-gray-500 dark:text-zinc-400">
+                                                    Žiadne produkty nezodpovedajú vyhľadávaniu
                                                 </div>
-                                            );
-                                        })}
+                                            ) : (
+                                                filteredModalGroupedProducts.map((item, pIdx) => {
+                                                    const isSelected = modalHighlightedProduct === item.name;
+                                                    return (
+                                                        <div 
+                                                            key={`grouped-${item.name}-${pIdx}`}
+                                                            onClick={() => setModalHighlightedProduct(isSelected ? null : item.name)}
+                                                            onMouseEnter={() => setModalHighlightedProduct(item.name)}
+                                                            className={`p-3 rounded-xl border text-xs flex justify-between items-center cursor-pointer transition-all ${
+                                                                isSelected 
+                                                                    ? 'bg-lime-950/70 border-lime-400 ring-2 ring-lime-400/50 shadow-md' 
+                                                                    : 'bg-gray-900 border-gray-800 hover:border-gray-700 hover:bg-gray-850'
+                                                            }`}
+                                                            title={`Kliknutím zvýrazníte všetkých ${formatFacingCount(item.count)} na fotografii`}
+                                                        >
+                                                            <div className="min-w-0 pr-2">
+                                                                <p className={`font-extrabold truncate text-xs ${isSelected ? 'text-lime-300' : 'text-white'}`}>{item.name}</p>
+                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                    {item.brand && (
+                                                                        <span className="text-[9px] font-black uppercase text-gray-300 bg-gray-800 px-1.5 py-0.5 rounded inline-block">
+                                                                            {item.brand}
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="text-[9.5px] font-bold text-gray-400 dark:text-zinc-500">
+                                                                        {item.percentageOfPhoto.toFixed(0)}% regálu
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                <span className="text-[11px] font-black text-lime-300 bg-lime-500/20 px-2.5 py-1 rounded-lg border border-lime-500/35 flex items-center gap-1.5 shadow-2xs">
+                                                                    <Box className="w-3.5 h-3.5 text-lime-400" />
+                                                                    <span>{formatFacingCount(item.count)}</span>
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )
+                                        ) : (
+                                            filteredModalListProducts.length === 0 ? (
+                                                <div className="p-6 text-center text-xs text-gray-500 dark:text-zinc-400">
+                                                    Žiadne produkty nezodpovedajú vyhľadávaniu
+                                                </div>
+                                            ) : (
+                                                filteredModalListProducts.map((p, pIdx) => {
+                                                    const isSelected = modalHighlightedProduct === p.name;
+                                                    const count = inspectedPhotoCountsMap.get(p.name?.trim().toLowerCase()) || 1;
+                                                    return (
+                                                        <div 
+                                                            key={`p-${p.id || pIdx}`}
+                                                            onClick={() => setModalHighlightedProduct(isSelected ? null : p.name)}
+                                                            onMouseEnter={() => setModalHighlightedProduct(p.name)}
+                                                            className={`p-3 rounded-xl border text-xs flex justify-between items-center cursor-pointer transition-all ${
+                                                                isSelected 
+                                                                    ? 'bg-lime-950/60 border-lime-500 ring-2 ring-lime-400/50 shadow-md' 
+                                                                    : 'bg-gray-900 border-gray-800 hover:border-gray-700 hover:bg-gray-850'
+                                                            }`}
+                                                        >
+                                                            <div className="min-w-0 pr-2">
+                                                                <p className={`font-extrabold truncate ${isSelected ? 'text-lime-300' : 'text-white'}`}>{p.name}</p>
+                                                                {p.brand && (
+                                                                    <span className="text-[9px] font-black uppercase text-gray-400 dark:text-zinc-500 bg-gray-800 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                                                                        {p.brand}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-[10px] font-black text-lime-300 bg-lime-500/20 px-2.5 py-1 rounded-lg border border-lime-500/30 shrink-0 flex items-center gap-1">
+                                                                <Box className="w-3 h-3 text-lime-400" />
+                                                                {formatFacingCount(count)}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })
+                                            )
+                                        )}
                                     </div>
                                 </div>
 
-                                <div className="pt-4 border-t border-gray-800">
+                                <div className="pt-3 border-t border-gray-800">
                                     <button
                                         onClick={() => {
                                             setSelectedPhotoId(inspectedImage.id);
@@ -1328,7 +1598,7 @@ export const ShelfSharePanel: React.FC<{ images: ImageState[] }> = ({ images }) 
                         </div>
 
                         {/* Modal Footer - Image Switching Controls */}
-                        <div className="p-4 bg-gray-900 border-t border-gray-800 flex justify-between items-center text-xs text-gray-400 font-bold">
+                        <div className="p-4 bg-gray-900 border-t border-gray-800 flex justify-between items-center text-xs text-gray-400 dark:text-zinc-500 font-bold">
                             <span>
                                 #{images.findIndex(img => img.id === inspectedImage.id) + 1} z {images.length}
                             </span>

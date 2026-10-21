@@ -1,9 +1,8 @@
 
-import type { StoreCentricSummary } from '../components/BatchSummaryPanel.tsx';
-import type { DistributionMatrix, PromoAlertItem } from '../types.ts';
+import type { StoreCentricSummary, DistributionMatrix, PromoAlertItem } from '../types.ts';
 import { getImageStoreName } from './helpers.ts';
-
-declare const html2canvas: any;
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface ShelfShareData {
     category: string;
@@ -18,7 +17,7 @@ interface ShelfShareData {
  * @param value The value to escape.
  * @returns A CSV-safe string.
  */
-const escapeCsvValue = (value: any): string => {
+export const escapeCsvValue = (value: any): string => {
     if (value === null || value === undefined) {
         return '';
     }
@@ -35,7 +34,7 @@ const escapeCsvValue = (value: any): string => {
  * @param data An array of data rows, where each row is an array of values.
  * @returns A CSV formatted string with a semicolon delimiter.
  */
-const convertToCSV = (headers: string[], data: (string | number | undefined)[][]): string => {
+export const convertToCSV = (headers: string[], data: (string | number | undefined)[][]): string => {
     const headerRow = headers.map(escapeCsvValue).join(';');
     const dataRows = data.map(row => row.map(escapeCsvValue).join(';'));
     return [headerRow, ...dataRows].join('\n');
@@ -205,8 +204,10 @@ export const exportPromoAlertToXLS = (
             case 'missing_promo': typeLabel = t('promoAlertMissingTitle'); break;
         }
 
-        const regularPrice = alert.product.prices?.find(p => p.type === 'REGULAR')?.value || '';
-        const promoPrice = alert.product.prices?.find(p => p.type === 'PROMO')?.value || '';
+        const regularPrice = alert.product.prices?.find(p => p.type?.toUpperCase() === 'REGULAR')?.value || 
+                             (typeof alert.product.regularPrice === 'number' ? `${alert.product.regularPrice.toFixed(2)} €` : '');
+        const promoPrice = alert.product.prices?.find(p => p.type?.toUpperCase() === 'PROMO')?.value || 
+                           (typeof alert.product.promoPrice === 'number' ? `${alert.product.promoPrice.toFixed(2)} €` : '');
 
         return [
             typeLabel,
@@ -264,21 +265,68 @@ export const exportQualityCheckToXLS = (
     triggerDownload(csvContent, `${title}_${date}.csv`, 'text/csv;charset=utf-8;');
 };
 
-export const exportToPDF = (elementToPrint: HTMLElement | null) => {
+export interface PdfExportOptions {
+    filename?: string;
+    marginMm?: number;
+    scale?: number;
+    orientation?: 'portrait' | 'landscape';
+    onStart?: () => void;
+    onFinish?: () => void;
+    onError?: (err: any) => void;
+}
+
+export const exportToPDF = async (
+    elementToPrint: HTMLElement | null,
+    optionsOrFilename?: string | PdfExportOptions
+): Promise<boolean> => {
     if (!elementToPrint) {
-      console.error("Element to print was not provided.");
-      return;
-    }
-  
-    if (typeof html2canvas === 'undefined') {
-        console.error("html2canvas library is not loaded.");
-        alert("PDF export functionality is currently unavailable. Please try again later.");
-        return;
+        console.error("Element to print was not provided.");
+        return false;
     }
 
-    // To capture full scrollable content, temporarily make it visible
-    const scrollableElements = Array.from(elementToPrint.querySelectorAll<HTMLElement>('.overflow-y-auto'));
-    // Identify elements to hide (e.g. buttons, filters, tabs) that have 'no-print' class
+    const options: PdfExportOptions = typeof optionsOrFilename === 'string'
+        ? { filename: optionsOrFilename }
+        : (optionsOrFilename || {});
+
+    const {
+        filename = `Report_${new Date().toISOString().slice(0, 10)}.pdf`,
+        marginMm = 8,
+        scale = 1.6,
+        orientation = 'portrait',
+        onStart,
+        onFinish,
+        onError,
+    } = options;
+
+    onStart?.();
+
+    // Handle hidden elements (e.g., print-only views with 'hidden print:block')
+    const isElementHidden = window.getComputedStyle(elementToPrint).display === 'none';
+    let originalElementInlineDisplay = '';
+    let originalElementInlinePosition = '';
+    let originalElementInlineLeft = '';
+    let originalElementInlineTop = '';
+    let originalElementInlineWidth = '';
+    let originalElementInlineZIndex = '';
+
+    if (isElementHidden) {
+        originalElementInlineDisplay = elementToPrint.style.display;
+        originalElementInlinePosition = elementToPrint.style.position;
+        originalElementInlineLeft = elementToPrint.style.left;
+        originalElementInlineTop = elementToPrint.style.top;
+        originalElementInlineWidth = elementToPrint.style.width;
+        originalElementInlineZIndex = elementToPrint.style.zIndex;
+
+        elementToPrint.style.display = 'block';
+        elementToPrint.style.position = 'fixed';
+        elementToPrint.style.left = '-9999px';
+        elementToPrint.style.top = '0';
+        elementToPrint.style.width = orientation === 'landscape' ? '1400px' : '1024px';
+        elementToPrint.style.zIndex = '-999';
+    }
+
+    // Identify scrollable elements and elements to hide
+    const scrollableElements = Array.from(elementToPrint.querySelectorAll<HTMLElement>('.overflow-y-auto, .overflow-auto'));
     const noPrintElements = Array.from(elementToPrint.querySelectorAll<HTMLElement>('.no-print'));
 
     const elementsToModify = [elementToPrint, ...scrollableElements];
@@ -293,7 +341,7 @@ export const exportToPDF = (elementToPrint: HTMLElement | null) => {
         });
         el.style.overflow = 'visible';
         el.style.maxHeight = 'none';
-        el.style.height = 'auto'; // Allow element to expand to its full content height
+        el.style.height = 'auto';
     });
 
     noPrintElements.forEach(el => {
@@ -301,57 +349,103 @@ export const exportToPDF = (elementToPrint: HTMLElement | null) => {
         el.style.display = 'none';
     });
 
-    html2canvas(elementToPrint, {
-        scale: 2, // Improves resolution for better quality PDF
-        useCORS: true,
-        backgroundColor: '#ffffff', // Ensure a white background for consistency
-        windowWidth: elementToPrint.scrollWidth,
-        windowHeight: elementToPrint.scrollHeight,
-    }).then((canvas: HTMLCanvasElement) => {
-        const imgData = canvas.toDataURL('image/png');
-        
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            printWindow.document.write(`
-                <html>
-                    <head>
-                        <title>Export to PDF</title>
-                        <style>
-                            @page { size: a4 portrait; margin: 0; }
-                            body { margin: 0; }
-                            img { width: 100%; display: block; }
-                        </style>
-                    </head>
-                    <body>
-                        <img src="${imgData}" alt="Export Preview" />
-                    </body>
-                </html>
-            `);
-            printWindow.document.close();
+    try {
+        const canvas = await html2canvas(elementToPrint, {
+            scale,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            windowWidth: Math.max(elementToPrint.scrollWidth, 1024),
+            windowHeight: elementToPrint.scrollHeight,
+            ignoreElements: (el) => el.classList && el.classList.contains('no-print'),
+        });
+
+        const isLandscape = orientation === 'landscape';
+        const pageWidthMm = isLandscape ? 297 : 210;
+        const pageHeightMm = isLandscape ? 210 : 297;
+        const contentWidthMm = pageWidthMm - (marginMm * 2);
+        const contentHeightMm = pageHeightMm - (marginMm * 2);
+
+        const pdf = new jsPDF({
+            orientation,
+            unit: 'mm',
+            format: 'a4',
+            compress: true,
+        });
+
+        const pxPerMm = canvas.width / contentWidthMm;
+        const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
+
+        let currentY = 0;
+        let pageIndex = 0;
+
+        while (currentY < canvas.height) {
+            if (pageIndex > 0) {
+                pdf.addPage('a4', orientation);
+            }
+
+            const sliceHeightPx = Math.min(pageHeightPx, canvas.height - currentY);
             
-            printWindow.onload = () => {
-                setTimeout(() => {
-                    printWindow.focus();
-                    printWindow.print();
-                    // Let the user close the print preview window
-                }, 250);
-            };
-        } else {
-            alert("Could not open print window. Please disable your pop-up blocker.");
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width = canvas.width;
+            pageCanvas.height = sliceHeightPx;
+            const pageCtx = pageCanvas.getContext('2d');
+
+            if (pageCtx) {
+                pageCtx.fillStyle = '#ffffff';
+                pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                pageCtx.drawImage(
+                    canvas,
+                    0, currentY, canvas.width, sliceHeightPx,
+                    0, 0, canvas.width, sliceHeightPx
+                );
+
+                const sliceHeightMm = (sliceHeightPx * contentWidthMm) / canvas.width;
+                const sliceImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+                pdf.addImage(
+                    sliceImgData,
+                    'JPEG',
+                    marginMm,
+                    marginMm,
+                    contentWidthMm,
+                    sliceHeightMm,
+                    undefined,
+                    'FAST'
+                );
+            }
+
+            currentY += sliceHeightPx;
+            pageIndex++;
         }
-    }).catch(err => {
-        console.error("Failed to generate PDF screenshot:", err);
-        alert("An error occurred while generating the PDF.");
-    }).finally(() => {
-        // Crucially, restore the original styles after the operation
+
+        const safeFilename = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+        pdf.save(safeFilename);
+        onFinish?.();
+        return true;
+    } catch (err) {
+        console.error("Failed to generate PDF:", err);
+        onError?.(err);
+        return false;
+    } finally {
+        // Restore styles
         originalStyles.forEach((styles, el) => {
             el.style.overflow = styles.overflow;
             el.style.maxHeight = styles.maxHeight;
             el.style.height = styles.height;
         });
-        
+
         noPrintElements.forEach(el => {
             el.style.display = originalDisplayStyles.get(el) || '';
         });
-    });
+
+        if (isElementHidden) {
+            elementToPrint.style.display = originalElementInlineDisplay;
+            elementToPrint.style.position = originalElementInlinePosition;
+            elementToPrint.style.left = originalElementInlineLeft;
+            elementToPrint.style.top = originalElementInlineTop;
+            elementToPrint.style.width = originalElementInlineWidth;
+            elementToPrint.style.zIndex = originalElementInlineZIndex;
+        }
+    }
 };

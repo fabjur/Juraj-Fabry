@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from '../i18n/index.tsx';
 import type { StoreCentricSummary, BrandClassifications } from '../types';
 import { buildPriceGapAnalytics, parseNumericPrice } from '../utils/priceAnalytics';
 import { db } from '../db';
@@ -31,6 +32,7 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
   brandClassifications,
   onOpenBrandDefinition
 }) => {
+  const { t } = useTranslation();
   const liveCatalog = useLiveQuery(() => db.product_catalog.toArray());
   const catalog = useMemo(() => liveCatalog || [], [liveCatalog]);
 
@@ -229,7 +231,7 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
 
   // Export to CSV
   const handleExportCsv = () => {
-    const headers = ['Produkt', 'Značka', 'Kategória', 'Typ značky', 'Predajňa', 'Reťazec', 'Cena (€)', 'Typ ceny', 'MOC (€)', 'MOC Odchýlka (%)', 'MOC Stav', 'Jednotková cena (€/j)', 'Objem/Váha', 'Cenový Index (%)'];
+    const headers = ['Produkt', 'Značka', 'Kategória', 'Typ značky', 'Predajňa', 'Reťazec', 'Cena ()', 'Typ ceny', 'MOC ()', 'MOC Odchýlka (%)', 'MOC Stav', 'Jednotková cena (/j)', 'Objem/Váha', 'Cenový Index (%)'];
     
     const rows = filteredItems.map(i => [
       `"${i.productName.replace(/"/g, '""')}"`,
@@ -261,21 +263,21 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Header Card */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-3xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-slate-200/80 shadow-3xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-200/60">
               <Scale className="w-5 h-5" />
             </span>
-            <h2 className="text-lg font-black text-slate-900 tracking-tight">
+            <h2 className="text-lg font-black text-slate-900 dark:text-zinc-100 tracking-tight">
               Cenový Monitoring & Price Gap Index
             </h2>
             <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200/60">
               Dynamic Pricing
             </span>
           </div>
-          <p className="text-xs font-semibold text-slate-500 max-w-2xl">
-            Automatický výpočet cenového indexu (Price Gap) voči kategórii, sledovanie odporúčaných cien (MOC compliance) a prepočet jednotkových cien (€/kg, €/l) pre odhalenie shrinkflácie.
+          <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400 max-w-2xl">
+            Automatický výpočet cenového indexu (Price Gap) voči kategórii, sledovanie odporúčaných cien (MOC compliance) a prepočet jednotkových cien (/kg, /l) pre odhalenie shrinkflácie.
           </p>
         </div>
 
@@ -283,9 +285,9 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
           {onOpenBrandDefinition && (
             <button
               onClick={onOpenBrandDefinition}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 border border-slate-200/80 transition-colors"
             >
-              <Tag className="w-3.5 h-3.5 text-slate-500" />
+              <Tag className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
               Klasifikácia značiek
             </button>
           )}
@@ -302,16 +304,16 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 1. Price Index */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-3xs">
+        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 shadow-3xs">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Cenový Index (Naša značka)</span>
+            <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Cenový Index (Naša značka)</span>
             <span className={`p-2 rounded-xl text-xs font-black ${kpis.ourPriceIndexVsCategory >= 100 ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'}`}>
               {kpis.ourPriceIndexVsCategory}%
             </span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{kpis.ourAvgPrice > 0 ? `${kpis.ourAvgPrice} €` : '—'}</span>
-            <span className="text-xs font-semibold text-slate-400">vs priemer {kpis.avgPrice} €</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-zinc-100">{kpis.ourAvgPrice > 0 ? `${kpis.ourAvgPrice} ` : '—'}</span>
+            <span className="text-xs font-semibold text-slate-400 dark:text-zinc-500">vs priemer {kpis.avgPrice} </span>
           </div>
           <div className="mt-3 flex items-center gap-1.5 text-[11px] font-bold">
             {kpis.ourPriceIndexVsCategory > 100 ? (
@@ -327,16 +329,16 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
         </div>
 
         {/* 2. MOC Compliance */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-3xs">
+        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 shadow-3xs">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">MOC Compliance</span>
+            <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">MOC Compliance</span>
             <span className={`p-2 rounded-xl text-xs font-black ${kpis.mocComplianceRate >= 80 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
               {kpis.mocComplianceRate}%
             </span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{kpis.mocTrackedCount}</span>
-            <span className="text-xs font-semibold text-slate-400">produktov s MOC</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-zinc-100">{kpis.mocTrackedCount}</span>
+            <span className="text-xs font-semibold text-slate-400 dark:text-zinc-500">produktov s MOC</span>
           </div>
           <div className="mt-3 flex items-center gap-2 text-[11px] font-bold">
             <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
@@ -349,43 +351,43 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
         </div>
 
         {/* 3. Extrahované jednotkové ceny */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-3xs">
+        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 shadow-3xs">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Jednotkové ceny (€/kg, €/l)</span>
+            <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Jednotkové ceny (/kg, /l)</span>
             <span className="p-2 rounded-xl bg-blue-50 text-blue-700 text-xs font-black">
               OCR Ready
             </span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{kpis.unitPricesCount}</span>
-            <span className="text-xs font-semibold text-slate-400">prepočítaných balení</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-zinc-100">{kpis.unitPricesCount}</span>
+            <span className="text-xs font-semibold text-slate-400 dark:text-zinc-500">prepočítaných balení</span>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+          <div className="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-zinc-400">
             <Package className="w-3.5 h-3.5 text-blue-600" /> Detekcia gramáže a shrinkflácie
           </div>
         </div>
 
         {/* 4. Medzireťazcový rozptyl */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-3xs">
+        <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200/80 shadow-3xs">
           <div className="flex justify-between items-start mb-2">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Monitorované reťazce</span>
-            <span className="p-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-black">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Monitorované reťazce</span>
+            <span className="p-2 rounded-xl bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-black">
               {chains.length} sietí
             </span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{productDispersions.length}</span>
-            <span className="text-xs font-semibold text-slate-400">unikátnych SKU</span>
+            <span className="text-2xl font-black text-slate-900 dark:text-zinc-100">{productDispersions.length}</span>
+            <span className="text-xs font-semibold text-slate-400 dark:text-zinc-500">unikátnych SKU</span>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
-            <Building2 className="w-3.5 h-3.5 text-slate-600" />
-            Max rozptyl cien: <strong className="text-slate-800">{productDispersions[0]?.deltaSpreadPercent || 0}%</strong>
+          <div className="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-zinc-400">
+            <Building2 className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
+            Max rozptyl cien: <strong className="text-slate-800 dark:text-zinc-200">{productDispersions[0]?.deltaSpreadPercent || 0}%</strong>
           </div>
         </div>
       </div>
 
       {/* SubTab Navigation */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-zinc-800 pb-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveSubTab('radar')}
@@ -410,7 +412,7 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
             <CheckCircle2 className="w-3.5 h-3.5" />
             MOC Compliance Tracker
             {kpis.overpricedCount + kpis.underpricedCount > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${activeSubTab === 'moc' ? 'bg-white text-blue-600' : 'bg-rose-100 text-rose-700'}`}>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${activeSubTab === 'moc' ? 'bg-white dark:bg-zinc-900 text-blue-600' : 'bg-rose-100 text-rose-700'}`}>
                 {kpis.overpricedCount + kpis.underpricedCount}
               </span>
             )}
@@ -444,42 +446,42 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
         {/* Global Filter Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Filtrovať tovar..."
+              placeholder={t('filterProductsPlaceholder')}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="pl-8 pr-3 py-1.5 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 w-44"
+              className="pl-8 pr-3 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200/90 rounded-xl text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 w-44"
             />
           </div>
 
           <select
             value={selectedCategory}
             onChange={e => setSelectedCategory(e.target.value)}
-            className="px-2.5 py-1.5 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold focus:outline-hidden"
+            className="px-2.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200/90 rounded-xl text-xs font-semibold focus:outline-hidden"
           >
-            <option value="all">Všetky kategórie</option>
+            <option value="all">{t('allCategories')}</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
 
           <select
             value={selectedChain}
             onChange={e => setSelectedChain(e.target.value)}
-            className="px-2.5 py-1.5 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold focus:outline-hidden"
+            className="px-2.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200/90 rounded-xl text-xs font-semibold focus:outline-hidden"
           >
-            <option value="all">Všetky reťazce</option>
+            <option value="all">{t('allChains')}</option>
             {chains.map(ch => <option key={ch} value={ch}>{ch}</option>)}
           </select>
 
           <select
             value={selectedBrandFilter}
             onChange={e => setSelectedBrandFilter(e.target.value as any)}
-            className="px-2.5 py-1.5 bg-white border border-slate-200/90 rounded-xl text-xs font-semibold focus:outline-hidden"
+            className="px-2.5 py-1.5 bg-white dark:bg-zinc-900 border border-slate-200/90 rounded-xl text-xs font-semibold focus:outline-hidden"
           >
-            <option value="all">Všetky značky</option>
-            <option value="our">Iba naše značky</option>
-            <option value="competitor">Iba konkurencia</option>
+            <option value="all">{t('allBrands')}</option>
+            <option value="our">{t('ourBrandsOnly')}</option>
+            <option value="competitor">{t('competitorsOnly')}</option>
           </select>
         </div>
       </div>
@@ -489,8 +491,8 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Category Benchmarks List */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-3xs space-y-4">
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-5 border border-slate-200/80 shadow-3xs space-y-4">
+              <h3 className="text-xs font-black text-slate-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-2">
                 <Layers className="w-4 h-4 text-blue-600" />
                 Priemerné ceny podľa kategórií
               </h3>
@@ -501,18 +503,18 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
                   return (
                     <div key={cat} className="p-3 bg-slate-50/70 rounded-2xl border border-slate-200/60 space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-slate-800">{cat}</span>
-                        <span className="text-xs font-black text-slate-900">{avg} €</span>
+                        <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">{cat}</span>
+                        <span className="text-xs font-black text-slate-900 dark:text-zinc-100">{avg} </span>
                       </div>
                       {ourAvg ? (
                         <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-200/50">
-                          <span className="text-slate-500 font-semibold">Naša značka: <strong>{ourAvg} €</strong></span>
+                          <span className="text-slate-500 dark:text-zinc-400 font-semibold">Naša značka: <strong>{ourAvg} </strong></span>
                           <span className={`font-black px-1.5 py-0.2 rounded text-[10px] ${gap && gap > 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'}`}>
                             {gap && gap > 0 ? `+${gap}%` : `${gap}%`}
                           </span>
                         </div>
                       ) : (
-                        <div className="text-[10px] text-slate-400 italic">Bez našej značky na regáli</div>
+                        <div className="text-[10px] text-slate-400 dark:text-zinc-500 italic">Bez našej značky na regáli</div>
                       )}
                     </div>
                   );
@@ -521,13 +523,13 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
             </div>
 
             {/* Price Index Horizontal Radar Bars */}
-            <div className="lg:col-span-2 bg-white rounded-3xl p-5 border border-slate-200/80 shadow-3xs space-y-4">
+            <div className="lg:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl p-5 border border-slate-200/80 shadow-3xs space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-xs font-black text-slate-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-2">
                   <Percent className="w-4 h-4 text-blue-600" />
                   Price Gap Index jednotlivých produktov
                 </h3>
-                <span className="text-[11px] font-semibold text-slate-400">100% = priemer kategórie</span>
+                <span className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500">100% = priemer kategórie</span>
               </div>
 
               <div className="space-y-3 max-h-[420px] overflow-y-auto custom-scrollbar pr-2">
@@ -535,21 +537,21 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
                   const pIndex = item.priceIndex || 100;
                   const isHigher = pIndex > 100;
                   return (
-                    <div key={idx} className="p-3 rounded-2xl border border-slate-200/70 hover:border-blue-300 transition-all bg-white">
+                    <div key={idx} className="p-3 rounded-2xl border border-slate-200/70 hover:border-blue-300 transition-all bg-white dark:bg-zinc-900">
                       <div className="flex justify-between items-start mb-1.5">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-slate-900 truncate">{item.productName}</span>
+                            <span className="text-xs font-black text-slate-900 dark:text-zinc-100 truncate">{item.productName}</span>
                             {item.isOurBrand && (
                               <span className="text-[9px] font-black uppercase text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">
                                 Naša značka
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] font-semibold text-slate-400">{item.storeName} ({item.category})</span>
+                          <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500">{item.storeName} ({item.category})</span>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="text-sm font-black text-slate-900">{item.actualPrice.toFixed(2)} €</span>
+                          <span className="text-sm font-black text-slate-900 dark:text-zinc-100">{item.actualPrice.toFixed(2)} </span>
                           <span className={`block text-[10px] font-bold ${isHigher ? 'text-indigo-600' : 'text-emerald-600'}`}>
                             Index: {pIndex}% ({item.benchmarkGapPercent && item.benchmarkGapPercent > 0 ? `+${item.benchmarkGapPercent}%` : `${item.benchmarkGapPercent}%`})
                           </span>
@@ -557,7 +559,7 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
                       </div>
 
                       {/* Visual Progress Bar centered on 100% */}
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden relative border border-slate-200/60">
+                      <div className="w-full bg-slate-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden relative border border-slate-200/60">
                         <div 
                           className={`h-full transition-all rounded-full ${item.isOurBrand ? 'bg-blue-600' : 'bg-slate-400'}`}
                           style={{ width: `${Math.min(100, (pIndex / 200) * 100)}%` }}
@@ -574,14 +576,14 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
 
       {/* SubTab 2: MOC Compliance Tracker */}
       {activeSubTab === 'moc' && (
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-3xs space-y-4">
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-slate-200/80 shadow-3xs space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
-              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-xs font-black text-slate-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 Sledovanie dodržiavania MOC (Doporučená maloobchodná cena)
               </h3>
-              <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+              <p className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 mt-0.5">
                 Okamžitá identifikácia regálových cien, ktoré sa odchyľujú od zmluvnej / doporučenej ceny o viac ako ±3%.
               </p>
             </div>
@@ -590,13 +592,13 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
               <select
                 value={selectedMocFilter}
                 onChange={e => setSelectedMocFilter(e.target.value as any)}
-                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-800 rounded-xl text-xs font-bold"
               >
-                <option value="all">Všetky stavy MOC</option>
-                <option value="deviations">Iba odchýlky (predražené / podhodnotené)</option>
-                <option value="overpriced">Iba predražené (&gt; +3%)</option>
-                <option value="underpriced">Iba podhodnotené (&lt; -3%)</option>
-                <option value="compliant">Iba v norme (±3%)</option>
+                <option value="all">{t('allMocStatuses')}</option>
+                <option value="deviations">{t('deviationsOnly')}</option>
+                <option value="overpriced">{t('overpricedOnly')}</option>
+                <option value="underpriced">{t('underpricedOnly')}</option>
+                <option value="compliant">{t('compliantOnly')}</option>
               </select>
             </div>
           </div>
@@ -604,7 +606,7 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                <tr className="border-b border-slate-200 dark:border-zinc-800 text-slate-400 dark:text-zinc-500 font-bold uppercase text-[10px] tracking-wider">
                   <th className="py-3 px-3">Produkt</th>
                   <th className="py-3 px-3">Predajňa & Reťazec</th>
                   <th className="py-3 px-3">Regálová cena</th>
@@ -614,10 +616,10 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
                   <th className="py-3 px-3 text-right">Rýchla úprava MOC</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+              <tbody className="divide-y divide-slate-100 dark:divide-zinc-800 font-semibold text-slate-700 dark:text-zinc-300">
                 {filteredItems.map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3 px-3 font-bold text-slate-900">
+                    <td className="py-3 px-3 font-bold text-slate-900 dark:text-zinc-100">
                       <div className="flex items-center gap-2">
                         <span>{item.productName}</span>
                         {item.isOurBrand && (
@@ -627,12 +629,12 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="py-3 px-3 text-slate-500">
+                    <td className="py-3 px-3 text-slate-500 dark:text-zinc-400">
                       {item.storeName}
                     </td>
                     <td className="py-3 px-3">
-                      <span className="font-extrabold text-slate-900 text-xs px-2 py-0.5 bg-slate-100 rounded-md">
-                        {item.actualPrice.toFixed(2)} €
+                      <span className="font-extrabold text-slate-900 dark:text-zinc-100 text-xs px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded-md">
+                        {item.actualPrice.toFixed(2)} 
                       </span>
                     </td>
                     <td className="py-3 px-3">
@@ -654,8 +656,8 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
                           </button>
                         </div>
                       ) : (
-                        <span className="text-slate-600 font-bold">
-                          {item.recommendedPrice ? `${item.recommendedPrice.toFixed(2)} €` : <span className="text-slate-300 italic text-[11px]">Nenastavené</span>}
+                        <span className="text-slate-600 dark:text-zinc-400 font-bold">
+                          {item.recommendedPrice ? `${item.recommendedPrice.toFixed(2)} ` : <span className="text-slate-300 italic text-[11px]">Nenastavené</span>}
                         </span>
                       )}
                     </td>
@@ -680,7 +682,7 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
                           <TrendingDown className="w-3 h-3" /> Podhodnotené ({item.mocDiffPercent}%)
                         </span>
                       ) : (
-                        <span className="text-[10px] font-semibold text-slate-400">Bez referenčnej MOC</span>
+                        <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500">Bez referenčnej MOC</span>
                       )}
                     </td>
                     <td className="py-3 px-3 text-right">
@@ -704,41 +706,41 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
 
       {/* SubTab 3: Unit Prices & Shrinkflation Tracker */}
       {activeSubTab === 'unitPrices' && (
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-3xs space-y-4">
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-slate-200/80 shadow-3xs space-y-4">
           <div>
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-xs font-black text-slate-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-2">
               <Package className="w-4 h-4 text-blue-600" />
-              Prepočet Jednotkových Cien (€/kg, €/l) & Shrinkflácia
+              Prepočet Jednotkových Cien (/kg, /l) & Shrinkflácia
             </h3>
-            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+            <p className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 mt-0.5">
               Normalizované porovnanie cien na 1 kg alebo 1 liter pre odhalenie neefektívnych balení, skrytého zdražovania a odlišných formátov.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredItems.filter(i => i.unitPrice && i.unitPrice > 0).map((item, idx) => (
-              <div key={idx} className="p-4 rounded-2xl border border-slate-200/80 hover:shadow-xs transition-all bg-white flex flex-col justify-between">
+              <div key={idx} className="p-4 rounded-2xl border border-slate-200/80 hover:shadow-xs transition-all bg-white dark:bg-zinc-900 flex flex-col justify-between">
                 <div>
                   <div className="flex justify-between items-start gap-2 mb-2">
-                    <span className="text-[10px] font-bold uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded">
                       {item.category}
                     </span>
                     <span className="text-xs font-extrabold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-lg">
                       {item.detectedVolume || 'Balenie'}
                     </span>
                   </div>
-                  <h4 className="text-xs font-black text-slate-900 line-clamp-2">{item.productName}</h4>
-                  <p className="text-[10px] text-slate-400 mt-1 font-semibold">{item.storeName}</p>
+                  <h4 className="text-xs font-black text-slate-900 dark:text-zinc-100 line-clamp-2">{item.productName}</h4>
+                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1 font-semibold">{item.storeName}</p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-semibold">Cena na regáli:</span>
-                    <span className="text-sm font-black text-slate-900">{item.actualPrice.toFixed(2)} €</span>
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-semibold">Cena na regáli:</span>
+                    <span className="text-sm font-black text-slate-900 dark:text-zinc-100">{item.actualPrice.toFixed(2)} </span>
                   </div>
 
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block font-semibold">Jednotková cena:</span>
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-semibold">Jednotková cena:</span>
                     <span className="text-sm font-black text-blue-600">
                       {item.unitPrice?.toFixed(2)} {item.unitLabel}
                     </span>
@@ -752,56 +754,56 @@ export const PriceGapAnalysisPanel: React.FC<PriceGapAnalysisPanelProps> = ({
 
       {/* SubTab 4: Cross-Chain Price Dispersion */}
       {activeSubTab === 'crossChain' && (
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-3xs space-y-4">
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-slate-200/80 shadow-3xs space-y-4">
           <div>
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-xs font-black text-slate-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-2">
               <ArrowUpDown className="w-4 h-4 text-blue-600" />
               Medzireťazcový Cenový Rozptyl (Price Dispersion)
             </h3>
-            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+            <p className="text-[11px] font-semibold text-slate-400 dark:text-zinc-500 mt-0.5">
               Porovnanie minimálnej, priemernej a maximálnej zistenej ceny pre identické produkty naprieč predajňami a sieťami.
             </p>
           </div>
 
           <div className="space-y-3">
             {productDispersions.map((pd, idx) => (
-              <div key={idx} className="p-4 rounded-2xl border border-slate-200/80 bg-white hover:border-slate-300 transition-all">
+              <div key={idx} className="p-4 rounded-2xl border border-slate-200/80 bg-white dark:bg-zinc-900 hover:border-slate-300 transition-all">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-black text-slate-900">{pd.productName}</span>
+                      <span className="text-sm font-black text-slate-900 dark:text-zinc-100">{pd.productName}</span>
                       {pd.isOurBrand && (
                         <span className="text-[9px] font-black uppercase text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">
                           Naša značka
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-slate-400 font-semibold">{pd.category} • nájdené na {pd.storeCount} predajniach</span>
+                    <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-semibold">{pd.category} • nájdené na {pd.storeCount} predajniach</span>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <span className="text-[10px] text-slate-400 block font-semibold">Cenový rozptyl:</span>
+                      <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-semibold">Cenový rozptyl:</span>
                       <span className={`text-xs font-black ${pd.deltaSpreadPercent > 15 ? 'text-rose-600' : 'text-slate-700'}`}>
-                        +{pd.deltaSpread.toFixed(2)} € ({pd.deltaSpreadPercent}%)
+                        +{pd.deltaSpread.toFixed(2)}  ({pd.deltaSpreadPercent}%)
                       </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Min - Avg - Max Price Indicators */}
-                <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 text-center">
+                <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-zinc-800/60 p-2.5 rounded-xl border border-slate-200/60 text-center">
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-bold uppercase">Min cena</span>
-                    <span className="text-xs font-black text-emerald-600">{pd.minPrice.toFixed(2)} €</span>
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-bold uppercase">Min cena</span>
+                    <span className="text-xs font-black text-emerald-600">{pd.minPrice.toFixed(2)} </span>
                   </div>
-                  <div className="border-x border-slate-200">
-                    <span className="text-[10px] text-slate-400 block font-bold uppercase">Priemer</span>
-                    <span className="text-xs font-black text-slate-900">{pd.avgPrice.toFixed(2)} €</span>
+                  <div className="border-x border-slate-200 dark:border-zinc-800">
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-bold uppercase">Priemer</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-zinc-100">{pd.avgPrice.toFixed(2)} </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block font-bold uppercase">Max cena</span>
-                    <span className="text-xs font-black text-rose-600">{pd.maxPrice.toFixed(2)} €</span>
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 block font-bold uppercase">Max cena</span>
+                    <span className="text-xs font-black text-rose-600">{pd.maxPrice.toFixed(2)} </span>
                   </div>
                 </div>
               </div>

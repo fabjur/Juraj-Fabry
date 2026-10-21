@@ -66,8 +66,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onLoa
 
   return (
     <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-start justify-center z-50 p-4 pt-20" role="dialog" aria-modal="true">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl transform transition-all flex flex-col max-h-[80vh]">
-        <div className="p-4 border-b border-gray-200">
+      <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl w-full max-w-2xl transform transition-all flex flex-col max-h-[80vh] border border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100">
+        <div className="p-4 border-b border-gray-200 dark:border-zinc-800">
           <div className="relative">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
               <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
@@ -77,7 +77,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onLoa
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t('searchInArchivePlaceholder')}
-              className="block w-full rounded-md border-0 bg-white py-2 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-lime-500 sm:text-sm sm:leading-6"
+              className="block w-full rounded-md border-0 bg-white dark:bg-zinc-800 py-2 pl-10 pr-10 text-gray-900 dark:text-zinc-100 ring-1 ring-inset ring-gray-300 dark:ring-zinc-700 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-inset focus:ring-lime-500 sm:text-sm sm:leading-6"
               autoFocus
             />
              <button onClick={onClose} className="absolute inset-y-0 right-0 flex items-center pr-3" aria-label={t('close')}>
@@ -93,19 +93,19 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onLoa
           ) : results.length > 0 ? (
             <ul className="space-y-3">
               {results.map(({ analysis, matches }) => (
-                <li key={analysis.id} className="bg-gray-50 p-3 rounded-md hover:bg-gray-100 transition-colors">
+                <li key={analysis.id} className="bg-gray-50 dark:bg-zinc-800/60 p-3 rounded-md hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-medium text-gray-900">{analysis.name}</p>
+                      <p className="font-medium text-gray-900 dark:text-zinc-100">{analysis.name}</p>
                       <p className="text-xs text-gray-500">
                         {t('createdAt')}: {new Date(analysis.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <button onClick={() => onLoadAnalysis(analysis.id)} title={t('load')} className="p-2 text-gray-500 hover:text-lime-600 rounded-full hover:bg-lime-100 transition-colors flex-shrink-0">
+                    <button onClick={() => onLoadAnalysis(analysis.id)} title={t('load')} className="p-2 text-gray-500 dark:text-zinc-400 hover:text-lime-600 dark:hover:text-lime-400 rounded-full hover:bg-lime-100 dark:hover:bg-zinc-700 transition-colors flex-shrink-0">
                       <FolderOpenIcon className="w-5 h-5" />
                     </button>
                   </div>
-                  <div className="mt-2 pl-4 border-l-2 border-gray-200 space-y-1">
+                  <div className="mt-2 pl-4 border-l-2 border-gray-200 dark:border-zinc-700 space-y-1">
                     {matches.map((match, index) => {
                         let matchTypeKey = '';
                         switch (match.type) {
@@ -118,7 +118,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onLoa
                             case 'manufacturer': matchTypeKey = 'foundInManufacturer'; break;
                         }
                         return (
-                            <div key={index} className="text-xs text-gray-600">
+                            <div key={index} className="text-xs text-gray-600 dark:text-zinc-300">
                                 <span className="font-semibold">{t(matchTypeKey)}: </span>
                                 <Highlighted text={match.context} highlight={searchTerm} />
                             </div>

@@ -9,7 +9,7 @@ export const useAppState = () => {
   const deferredSearchTerm = useDeferredValue(productSearchTerm);
   const [highlightedProductName, setHighlightedProductName] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ActiveView>('home');
-  const [hasApiKey, setHasApiKey] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(true);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [brandsForClassification, setBrandsForClassification] = useState<string[]>([]);
   const [brandClassifications, setBrandClassifications] = useState<BrandClassifications>({ ourBrands: [], competitorBrands: [] });

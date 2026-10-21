@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import type { ProductHistoryPoint } from '../types.ts';
 import { useTranslation } from '../i18n/index.tsx';
+import Chart from '../utils/chartSetup.ts';
 
 // Define types locally to remove module dependency, relying on the global Chart object
 type ChartJS = any;
@@ -85,7 +86,7 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({ data, onPo
                                     label += ': ';
                                 }
                                 if (context.parsed.y !== null) {
-                                    label += `${context.parsed.y}€`;
+                                    label += `${context.parsed.y}`;
                                 }
                                 return label;
                             },
@@ -123,7 +124,7 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({ data, onPo
             },
         };
 
-        chartInstanceRef.current = new (window as any).Chart(ctx, config);
+        chartInstanceRef.current = new Chart(ctx, config);
 
         return () => {
             if (chartInstanceRef.current) {

@@ -22,24 +22,24 @@ export const MergeConfirmationModal: React.FC<MergeConfirmationModalProps> = ({ 
 
   return (
     <div className="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform transition-all">
+      <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl w-full max-w-md p-6 transform transition-all">
         <div className="flex items-center gap-3 mb-4 text-lime-600">
             <MagicWandIcon className="w-6 h-6" />
-            <h3 className="text-lg font-bold text-gray-900">{t('mergeProductsTitle')}</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-zinc-100">{t('mergeProductsTitle')}</h3>
         </div>
         
-        <p className="text-sm text-gray-600 mb-6">
+        <p className="text-sm text-gray-600 dark:text-zinc-400 mb-6">
             {t('mergeProductsMessage', { source: candidate.source.name, target: candidate.target.name })}
         </p>
 
-        <div className="bg-gray-50 p-4 rounded-md mb-6 grid gap-3 border border-gray-200">
+        <div className="bg-gray-50 dark:bg-zinc-800/60 p-4 rounded-md mb-6 grid gap-3 border border-gray-200 dark:border-zinc-800">
             <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-500 uppercase">{t('productA')}</span>
-                <span className="text-sm font-medium text-gray-900 text-right">{candidate.source.name}</span>
+                <span className="text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase">{t('productA')}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-zinc-100 text-right">{candidate.source.name}</span>
             </div>
-            <div className="flex justify-center text-gray-400">↓</div>
+            <div className="flex justify-center text-gray-400 dark:text-zinc-500">↓</div>
             <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-gray-500 uppercase">{t('productB')}</span>
+                <span className="text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase">{t('productB')}</span>
                 <span className="text-sm font-bold text-lime-700 text-right">{candidate.target.name}</span>
             </div>
         </div>
@@ -53,7 +53,7 @@ export const MergeConfirmationModal: React.FC<MergeConfirmationModalProps> = ({ 
             </button>
             <button
                 onClick={onReject}
-                className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 sm:text-sm"
+                className="w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-zinc-700 shadow-sm px-4 py-2 bg-white dark:bg-zinc-900 text-base font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800/60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-lime-500 sm:text-sm"
             >
                 {t('noMergeButton')}
             </button>

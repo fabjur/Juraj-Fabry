@@ -18,6 +18,22 @@ export interface PriceInfo {
 export type ObjectType = 'product' | 'pos_material';
 export type PosType = 'wobbler' | 'stopper' | 'stand' | 'pallet' | 'secondary_display';
 
+export interface ObservationAuditTrailEntry {
+  id: string;
+  timestamp: string; // ISO
+  user: string;
+  action: 'verify' | 'change_sku' | 'correct_price' | 'assign_tag' | 'discard' | 'request_retake' | 'reset';
+  fieldName?: string;
+  previousValue?: any;
+  newValue?: any;
+  notes?: string;
+}
+
+export type VerificationStatus = 'pending_review' | 'auto_accepted' | 'human_verified' | 'unresolvable';
+export type SkuVerificationStatus = 'unverified' | 'confirmed' | 'changed' | 'unresolvable';
+export type PriceReadabilityStatus = 'readable' | 'partially_readable' | 'illegible' | 'missing';
+export type TagAssociationStatus = 'correct' | 'wrong_tag' | 'unassigned';
+
 export interface DetectedProduct {
   id: string;
   imageId?: string;
@@ -32,6 +48,112 @@ export interface DetectedProduct {
   posType?: PosType;
   isGhost?: boolean;
   priceIntegrityStatus?: 'valid' | 'corrected' | 'warning' | 'missing';
+  // Standardized metrics & SKU properties
+  canonicalSku?: string;
+  category?: string;
+  facings?: number; // default 1
+  visiblePacks?: number; // default 1
+  estimatedStock?: number | null; // never guess hidden units
+  regularPrice?: number | null; // parsed numeric, null if missing
+  promoPrice?: number | null; // parsed numeric, null if missing
+  clubPrice?: number | null; // loyalty/club price, null if missing
+  currency?: string; // default 'EUR'
+  // Verification dimensions
+  verificationStatus?: VerificationStatus;
+  skuVerificationStatus?: SkuVerificationStatus;
+  priceReadabilityStatus?: PriceReadabilityStatus;
+  tagAssociationStatus?: TagAssociationStatus;
+  isDiscarded?: boolean; // false positive exclusion
+  needsRetake?: boolean; // blurred/obscured photo flag
+  assignedPriceTagId?: string | null;
+  auditTrail?: ObservationAuditTrailEntry[];
+  originalAiSnapshot?: {
+    name: string;
+    prices?: PriceInfo[];
+    confidence: number;
+    boundingBox?: BoundingBox;
+  };
+}
+
+export interface ProductObservation extends DetectedProduct {
+  observationId: string;
+  analysisId: string;
+  storeId?: number;
+  storeName: string;
+  storeChain?: string;
+  imageName?: string;
+  imageUrl?: string;
+}
+
+export interface AuditFilterOptions {
+  category?: string; // 'ALL' or specific category
+  brand?: string; // 'ALL' or specific brand
+  brandType?: 'ALL' | 'OUR' | 'COMPETITOR';
+  imageId?: string; // 'ALL' or specific imageId
+  searchQuery?: string;
+  verificationStatus?: 'ALL' | VerificationStatus;
+  priceStatus?: 'ALL' | 'with_price' | 'missing_price' | 'promo_only';
+  includePos?: boolean;
+  includeGhosts?: boolean;
+  includeDiscarded?: boolean;
+}
+
+export interface SingleShareMetric {
+  key: string;
+  label: string;
+  brand?: string;
+  category?: string;
+  facings: number;
+  facingSharePercent: number;
+  facingDenominator: number;
+  areaFraction: number | null;
+  areaSharePercent: number | null;
+  areaDenominator: number | null;
+  isAreaEvaluatable: boolean;
+  calculationMethod: string;
+  uniqueSkus: number;
+  unrecognizedIncludedInDenominator: boolean;
+  unrecognizedCount: number;
+}
+
+export interface SharedAuditMetrics {
+  auditId: string;
+  storeName: string;
+  storeChain?: string;
+  auditDate: string;
+  totalImages: number;
+  // Clear facing vs visible packs vs stock distinction
+  totalFacings: number; // Front row facings (excluding POS, ghosts, discarded)
+  totalVisiblePacks: number; // Visible units
+  totalEstimatedStock: number | null; // Known shelf capacity/depth, never guessed
+  // Excluded entities clearly tracked
+  ghostsCount: number;
+  posCount: number;
+  discardedCount: number;
+  // Unique SKUs (strictly canonical without fuzzy auto-merge)
+  uniqueSkusCount: number;
+  // Prices
+  withPriceCount: number;
+  missingPriceCount: number;
+  priceCoveragePercent: number;
+  promoCount: number;
+  promoSharePercent: number;
+  avgRegularPrice: number | null;
+  avgPromoPrice: number | null;
+  avgDiscountPercent: number | null;
+  currency: string;
+  // Verification progress
+  pendingReviewCount: number;
+  verifiedCount: number;
+  autoAcceptedCount: number;
+  unresolvableCount: number;
+  verificationProgressPercent: number;
+  // Shelf share metrics
+  categoryShares: SingleShareMetric[];
+  brandShares: SingleShareMetric[];
+  isAreaEvaluatable: boolean;
+  areaEvaluationNote: string;
+  appliedFilters: AuditFilterOptions;
 }
 
 export interface StoreInfo {
@@ -78,6 +200,8 @@ export interface SerializableImageState {
   analysisType?: 'price' | 'shelfShare' | 'both' | 'osa' | 'qualityCheck';
   model?: string;
   retryCount?: number;
+  isWideShelf?: boolean;
+  isVideoMode?: boolean;
   assignedStore?: Store | null; 
   assignedStoreId?: number;
   productCategory?: string;
@@ -145,6 +269,41 @@ export interface PriceGapItem {
   priceType: 'REGULAR' | 'PROMO';
   benchmarkGapPercent?: number;
   priceIndex?: number;
+}
+
+export interface CompetitorPriceEntry {
+  id?: number;
+  productName: string;
+  competitorProduct: string;
+  competitorBrand: string;
+  category: string;
+  competitorPrice: number;
+  competitorPriceType?: 'REGULAR' | 'PROMO';
+  chain?: string;
+  notes?: string;
+  updatedAt?: string;
+}
+
+export interface CompetitorComparisonRow {
+  id: string;
+  productName: string;
+  brand: string;
+  category: string;
+  storeName: string;
+  storeChain: string;
+  actualPrice: number;
+  actualPriceType: 'REGULAR' | 'PROMO';
+  competitorPriceEntry?: CompetitorPriceEntry | null;
+  competitorProductName: string;
+  competitorBrand: string;
+  competitorPrice: number;
+  competitorChain?: string;
+  priceDiffEur: number;
+  priceDiffPercent: number;
+  priceIndex: number;
+  status: 'cheaper' | 'competitive' | 'more_expensive' | 'unpaired';
+  confidence?: number;
+  imageId?: string;
 }
 
 export interface BrandMemoryEntry {
@@ -284,7 +443,7 @@ export interface StoreCentricSummary {
     products: ProductInStore[];
 }
 
-export type ActiveView = 'home' | 'gallery' | 'priceMonitoring' | 'shelfShare' | 'promoAlert' | 'distribution' | 'listing' | 'productCatalog' | 'analyses' | 'stores' | 'costs' | 'prompts' | 'qualityCheck' | 'dashboard';
+export type ActiveView = 'home' | 'gallery' | 'priceMonitoring' | 'shelfShare' | 'promoAlert' | 'distribution' | 'listing' | 'productCatalog' | 'analyses' | 'stores' | 'costs' | 'prompts' | 'qualityCheck' | 'dashboard' | 'exportReports' | 'competitorComparison' | 'chat' | 'verificationQueue' | 'systemTests';
 
 export type RecommendationSeverity = 'critical' | 'warning' | 'info' | 'optimization';
 export type RecommendationCategory = 

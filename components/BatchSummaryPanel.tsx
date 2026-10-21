@@ -1,33 +1,41 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
-import type { BrandClassifications, StoreCentricSummary, Analysis } from '../types';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import type { BrandClassifications, StoreCentricSummary, Analysis, ProductInStore, PriceInfo, DetectedProduct } from '../types';
 import type { ImageState } from '../hooks/useImageAnalysis';
 import { getCategoryFromName, findBestMatch, removeDateFromStoreName, getImageStoreName } from '../utils/helpers';
 import { 
   CloseIcon, 
-  SpinnerIcon,
-  ChartBarIcon, 
-  ChartPieIcon, 
-  ArrowDownTrayIcon, 
   TrashIcon, 
-  DocumentTextIcon, 
-  ShieldExclamationIcon, 
-  MagicWandIcon, 
-  CpuChipIcon, 
   TagIcon, 
   BoxIcon,
   EditIcon,
-  ClockIcon,
-  ChevronLeftIcon
+  ChevronLeftIcon,
+  SpinnerIcon,
+  MagicWandIcon
 } from './Icons';
 import { FilterControls, Filters } from './FilterControls';
 import { ShelfSharePanel } from './ShelfSharePanel';
 import { PromoAlertPanel } from './PromoAlertPanel';
 import { useTranslation } from '../i18n';
-import { exportPriceMonitoringToXLS, exportToPDF, exportQualityCheckToXLS } from '../utils/export';
 import { PriceTrendReportBuilder } from './PriceTrendReportBuilder';
 import { PriceGapAnalysisPanel } from './PriceGapAnalysisPanel';
-import { Scale } from 'lucide-react';
-import { TranslatedText } from './TranslatedText';
+import { 
+  ArrowLeftRight, 
+  AlertTriangle,
+  LayoutDashboard,
+  TrendingUp,
+  PieChart,
+  CheckCircle2,
+  Camera,
+  FileDown,
+  Eye,
+  ShieldCheck
+} from 'lucide-react';
+import { AuditExceptionTriagePanel } from './AuditExceptionTriagePanel';
+import { AuditExportModal } from './AuditExportModal';
+import { calculateAuditMetrics } from '../utils/auditMetrics';
+import { generateShelfPreviewSvg } from '../utils/shelfPreview.ts';
+
+export type { StoreCentricSummary };
 
 const parsePrice = (priceValue: string): number | null => {
   const cleaned = priceValue.replace(',', '.').replace(/[^\d.]/g, '');
@@ -35,11 +43,23 @@ const parsePrice = (priceValue: string): number | null => {
   return isNaN(value) ? null : value;
 };
 
+const getLocaleTag = (lang?: string): string => {
+  switch (lang) {
+    case 'sk': return 'sk-SK';
+    case 'cs': return 'cs-CZ';
+    case 'de': return 'de-DE';
+    case 'hu': return 'hu-HU';
+    case 'hr': return 'hr-HR';
+    default: return 'en-US';
+  }
+};
+
 export const ViewportStoreCardLegacy: React.FC<{
     store: StoreCentricSummary;
     setZoomedImage: (url: string | null) => void;
     onCorrectProduct?: (imageId: string, originalName: string, newName: string, prices: PriceInfo[], count: number) => void;
 }> = ({ store, setZoomedImage, onCorrectProduct }) => {
+    const { t } = useTranslation();
     const [isVisible, setIsVisible] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
 
@@ -125,7 +145,7 @@ export const ViewportStoreCardLegacy: React.FC<{
         return (
             <div 
                 ref={cardRef} 
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm min-h-[90px] flex items-center justify-center text-gray-400 font-sans"
+                className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-sm min-h-[90px] flex items-center justify-center text-gray-400 dark:text-zinc-500 font-sans"
             >
                 <div className="flex items-center gap-2">
                     <span className="text-base animate-pulse">🏪</span>
@@ -136,16 +156,16 @@ export const ViewportStoreCardLegacy: React.FC<{
     }
 
     return (
-        <div ref={cardRef} className="bg-white rounded-2xl border border-gray-150 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-            <div className="bg-gray-50/50 px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="font-extrabold text-gray-900 text-sm flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+        <div ref={cardRef} className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-150 dark:border-zinc-800 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+            <div className="bg-gray-50/50 dark:bg-zinc-950/60 px-5 py-3 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between">
+                <h3 className="font-extrabold text-gray-900 dark:text-zinc-100 text-sm flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 flex items-center justify-center shadow-sm">
                         <span className="text-sm">🏪</span>
                     </div>
                     {store.storeName}
                     {store.storeCode && <span className="bg-blue-50 text-blue-700 text-[9px] px-2 py-0.5 rounded-md font-bold uppercase tracking-wider border border-blue-100">#{store.storeCode}</span>}
                 </h3>
-                <span className="text-[10px] font-bold text-gray-500 bg-white px-2.5 py-1 rounded-lg border border-gray-100 shadow-sm">
+                <span className="text-[10px] font-bold text-gray-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 px-2.5 py-1 rounded-lg border border-gray-100 dark:border-zinc-700 shadow-sm">
                     {store.products.length} položiek
                 </span>
             </div>
@@ -157,10 +177,10 @@ export const ViewportStoreCardLegacy: React.FC<{
                         <div className="flex items-center gap-1.5 py-0.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                             <span className="text-[9px] font-black text-blue-700 uppercase tracking-wider bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100/50">{catName}</span>
-                            <div className="h-px bg-gray-100 flex-grow"></div>
+                            <div className="h-px bg-gray-100 dark:bg-zinc-800 flex-grow"></div>
                         </div>
                         
-                        <div className="bg-gray-50/10 rounded-xl border border-gray-150 divide-y divide-gray-100 overflow-hidden">
+                        <div className="bg-gray-50/10 rounded-xl border border-gray-150 dark:border-zinc-800 divide-y divide-gray-100 dark:divide-zinc-800 overflow-hidden">
                             {products.map((product, idx) => {
                                 // Robust price matching (case-insensitive & aliases friendly)
                                 let regularPrice = product.priceHistory.find(ph => ph.price.type?.toUpperCase() === 'REGULAR')?.price.value || 
@@ -183,15 +203,15 @@ export const ViewportStoreCardLegacy: React.FC<{
                                 
                                 if (isEditing) {
                                     return (
-                                        <div key={`edit-${product.type}-${product.name}-${idx}`} className="bg-slate-50 p-3.5 flex flex-col gap-2 rounded-xl border border-slate-200 my-1 shadow-inner animate-fade-in">
+                                        <div key={`edit-${product.type}-${product.name}-${idx}`} className="bg-slate-50 dark:bg-zinc-800/60 p-3.5 flex flex-col gap-2 rounded-xl border border-slate-200 dark:border-zinc-800 my-1 shadow-inner animate-fade-in">
                                             {/* Name */}
                                             <div className="flex flex-col">
-                                                <label className="text-[9px] text-gray-500 font-bold uppercase mb-0.5">{t('productName')}</label>
+                                                <label className="text-[9px] text-gray-500 dark:text-zinc-400 font-bold uppercase mb-0.5">{t('productName')}</label>
                                                 <input
                                                     type="text"
                                                     value={editingName}
                                                     onChange={(e) => setEditingName(e.target.value)}
-                                                    className="bg-white border text-xs font-bold rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                    className="bg-white dark:bg-zinc-900 border text-xs font-bold rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                     autoFocus
                                                 />
                                             </div>
@@ -199,13 +219,13 @@ export const ViewportStoreCardLegacy: React.FC<{
                                             {/* Price & Count inline */}
                                             <div className="grid grid-cols-3 gap-2">
                                                 <div className="flex flex-col">
-                                                    <label className="text-[9px] text-gray-500 font-bold uppercase mb-0.5">{t('regularPriceCol')}</label>
+                                                    <label className="text-[9px] text-gray-500 dark:text-zinc-400 font-bold uppercase mb-0.5">{t('regularPriceCol')}</label>
                                                     <input
                                                         type="text"
                                                         placeholder="Napr. 1.25"
                                                         value={editingRegular}
                                                         onChange={(e) => setEditingRegular(e.target.value)}
-                                                        className="bg-white border text-xs font-bold rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                        className="bg-white dark:bg-zinc-900 border text-xs font-bold rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                     />
                                                 </div>
                                                 <div className="flex flex-col">
@@ -215,16 +235,16 @@ export const ViewportStoreCardLegacy: React.FC<{
                                                         placeholder="Napr. 0.99"
                                                         value={editingPromo}
                                                         onChange={(e) => setEditingPromo(e.target.value)}
-                                                        className="bg-white border text-xs font-bold rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                        className="bg-white dark:bg-zinc-900 border text-xs font-bold rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                                     />
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <label className="text-[9px] text-gray-500 font-bold uppercase mb-0.5">{t('countPcs')}</label>
-                                                    <div className="flex items-center border rounded bg-white overflow-hidden h-7">
+                                                    <label className="text-[9px] text-gray-500 dark:text-zinc-400 font-bold uppercase mb-0.5">{t('countPcs')}</label>
+                                                    <div className="flex items-center border rounded bg-white dark:bg-zinc-900 overflow-hidden h-7">
                                                         <button 
                                                             type="button"
                                                             onClick={() => setEditingCount(c => Math.max(0, c - 1))}
-                                                            className="px-2 h-full bg-gray-50 hover:bg-gray-100 text-gray-650 font-bold border-r text-xs"
+                                                            className="px-2 h-full bg-gray-50 dark:bg-zinc-800/60 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-650 font-bold border-r text-xs"
                                                         >-</button>
                                                         <input
                                                             type="number"
@@ -235,7 +255,7 @@ export const ViewportStoreCardLegacy: React.FC<{
                                                         <button 
                                                             type="button"
                                                             onClick={() => setEditingCount(c => c + 1)}
-                                                            className="px-2 h-full bg-gray-50 hover:bg-gray-100 text-gray-655 font-bold border-l text-xs"
+                                                            className="px-2 h-full bg-gray-50 dark:bg-zinc-800/60 hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-655 font-bold border-l text-xs"
                                                         >+</button>
                                                     </div>
                                                 </div>
@@ -246,7 +266,7 @@ export const ViewportStoreCardLegacy: React.FC<{
                                                 <button
                                                     type="button"
                                                     onClick={() => setEditingProductKey(null)}
-                                                    className="px-2 py-1 bg-white border rounded text-[9px] font-black uppercase text-gray-500 hover:bg-gray-50"
+                                                    className="px-2 py-1 bg-white dark:bg-zinc-900 border rounded text-[9px] font-black uppercase text-gray-500 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/60"
                                                 >
                                                     {t('cancel')}
                                                 </button>
@@ -268,7 +288,7 @@ export const ViewportStoreCardLegacy: React.FC<{
                                         <div className="flex items-center gap-2.5 min-w-0 flex-grow">
                                             {/* Thumbnail */}
                                             <div 
-                                                className="w-8 h-8 rounded-md overflow-hidden border border-gray-200 flex-shrink-0 bg-white group-hover:border-blue-400 transition-all cursor-zoom-in shadow-xs relative"
+                                                className="w-8 h-8 rounded-md overflow-hidden border border-gray-200 dark:border-zinc-800 flex-shrink-0 bg-white dark:bg-zinc-900 group-hover:border-blue-400 transition-all cursor-zoom-in shadow-xs relative"
                                                 onClick={() => setZoomedImage(product.imageUrl || null)}
                                             >
                                                 {product.imageUrl ? (
@@ -309,8 +329,8 @@ export const ViewportStoreCardLegacy: React.FC<{
                                         {/* Right Side: Metadata (Confidence/Faces) & Prices on far right */}
                                         <div className="flex items-center gap-3 ml-auto flex-shrink-0">
                                             {/* Compact Specs Row (Confidence & Facing Counts) */}
-                                            <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold">
-                                                <span className="bg-gray-100/60 px-1.5 py-0.5 rounded border border-gray-200">
+                                            <div className="flex items-center gap-2 text-[10px] text-gray-400 dark:text-zinc-500 font-bold">
+                                                <span className="bg-gray-100/60 px-1.5 py-0.5 rounded border border-gray-200 dark:border-zinc-800">
                                                     {Math.round(product.avgConfidence * 100)}%
                                                 </span>
                                                 {!isPOS && (
@@ -325,7 +345,7 @@ export const ViewportStoreCardLegacy: React.FC<{
                                             {!isPOS && (
                                                 <div className="flex items-center gap-1.5 flex-shrink-0 min-w-[70px] justify-end">
                                                     {regularPrice ? (
-                                                        <div className={`px-1.5 py-0.5 rounded text-xs font-bold border shadow-3xs transition-all ${promoPrice ? 'bg-gray-50 text-gray-450 line-through border-gray-150 font-normal text-[10px]' : 'bg-white text-gray-950 border-gray-200'}`}>
+                                                        <div className={`px-1.5 py-0.5 rounded text-xs font-bold border shadow-3xs transition-all ${promoPrice ? 'bg-gray-50 text-gray-450 line-through border-gray-150 font-normal text-[10px]' : 'bg-white dark:bg-zinc-900 text-gray-950 border-gray-200 dark:border-zinc-800'}`}>
                                                             {regularPrice}
                                                         </div>
                                                     ) : null}
@@ -335,7 +355,7 @@ export const ViewportStoreCardLegacy: React.FC<{
                                                         </div>
                                                     ) : null}
                                                     {!regularPrice && !promoPrice && (
-                                                        <span className="text-[9px] italic font-bold text-gray-400 bg-gray-50/50 px-1.5 py-0.5 rounded border border-gray-150 uppercase tracking-wider">
+                                                        <span className="text-[9px] italic font-bold text-gray-400 dark:text-zinc-500 bg-gray-50/50 dark:bg-zinc-900/60 px-1.5 py-0.5 rounded border border-gray-150 dark:border-zinc-800 uppercase tracking-wider">
                                                             bez ceny
                                                         </span>
                                                     )}
@@ -350,7 +370,7 @@ export const ViewportStoreCardLegacy: React.FC<{
                                                         e.stopPropagation();
                                                         handleEditClick(product);
                                                     }}
-                                                    className="p-1 px-1.5 text-gray-400 hover:text-lime-600 hover:bg-lime-50 rounded border border-transparent hover:border-lime-200 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 active:scale-95"
+                                                    className="p-1 px-1.5 text-gray-400 dark:text-zinc-500 hover:text-lime-600 hover:bg-lime-50 rounded border border-transparent hover:border-lime-200 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 active:scale-95"
                                                     title="Upraviť produkt"
                                                 >
                                                     <EditIcon className="w-3.5 h-3.5" />
@@ -381,6 +401,10 @@ interface BatchSummaryPanelProps {
     onToggleImagesSidebar?: () => void;
     onCorrectProduct?: (imageId: string, originalName: string, newName: string, prices: PriceInfo[], count: number) => void;
     onOpenBrandDefinition?: () => void;
+    initialSubTab?: 'summary' | 'products' | 'shelfShare' | 'availability' | 'promo' | 'photos' | 'priceAnalysis' | 'priceGap' | 'promoAlert' | 'rawData' | 'qualityCheck' | 'triage';
+    onUpdateProductPrices?: (updates: { imageId: string; productId: string; prices: PriceInfo[] }[]) => void;
+    onRenameProduct?: (imageId: string, productId: string, origName: string, newName: string) => Promise<void>;
+    onNavigateToImage?: (imageId: string, productName?: string, productId?: string) => void;
 }
 
 export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({ 
@@ -393,41 +417,143 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
   activeAnalysis,
   onRenameAnalysis,
   onCorrectProduct,
-  onOpenBrandDefinition
+  onOpenBrandDefinition,
+  initialSubTab,
+  onUpdateProductPrices,
+  onRenameProduct,
+  onNavigateToImage,
 }): React.ReactNode => {
-  const { t, language } = useTranslation();
+  const { t, language = 'sk' } = useTranslation();
+
+  const [view, setView] = useState<
+    'summary' | 'products' | 'shelfShare' | 'availability' | 'promo' | 'photos' | 'priceAnalysis' | 'priceGap' | 'promoAlert' | 'rawData' | 'qualityCheck' | 'triage'
+  >(() => {
+    if (initialSubTab) return initialSubTab;
+    if (initialView === 'shelfShare') return 'shelfShare';
+    if (initialView === 'promoAlert') return 'promo';
+    return 'summary';
+  });
 
   const getSubSectionLabel = () => {
     switch (view) {
-      case 'priceAnalysis': return t('subSectionPriceAnalysis');
-      case 'priceGap': return 'Price Gap & MOC';
-      case 'shelfShare': return t('subSectionShelfShare');
-      case 'promoAlert': return t('subSectionPromoAlert');
+      case 'summary': return t('tabSummary') || 'Súhrn auditu';
+      case 'products':
+      case 'priceAnalysis': return t('tabProducts') || 'Produkty a ceny';
+      case 'shelfShare': return t('tabShelfShare') || 'Podiel na regáli';
+      case 'availability':
+      case 'qualityCheck': return t('tabAvailability') || 'Dostupnosť (OSA)';
+      case 'promo':
+      case 'promoAlert':
+      case 'priceGap': return t('tabPromo') || 'Promo a akcie';
+      case 'photos': return t('tabPhotos') || 'Fotografie';
+      case 'triage': return t('stepVerification') || 'Kontrola';
       case 'rawData': return t('subSectionRawData');
-      case 'qualityCheck': return t('subSectionQualityCheck');
-      default: return t('analysesOverview');
+      default: return t('tabSummary') || 'Súhrn auditu';
     }
   };
 
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
-  const [view, setView] = useState<'priceAnalysis' | 'priceGap' | 'shelfShare' | 'promoAlert' | 'rawData' | 'qualityCheck'>(() => {
-    if (images.some(img => img.analysisType === 'qualityCheck')) return 'qualityCheck';
-    if (initialView === 'priceMonitoring') return 'priceAnalysis';
-    if (initialView === 'shelfShare') return 'shelfShare';
-    if (initialView === 'promoAlert') return 'promoAlert';
-    if (initialView === 'costs') return 'rawData';
-    return 'priceAnalysis';
-  });
+  const [isAuditExportModalOpen, setIsAuditExportModalOpen] = useState(false);
 
-  const hasQualityChecks = useMemo(() => images.some(img => img.analysisType === 'qualityCheck'), [images]);
+  const getSafeBatchPhotoUrl = useCallback((img: ImageState): string => {
+    if (!img) return '';
+    if (img.file instanceof Blob && img.file.size > 0) {
+      try {
+        return URL.createObjectURL(img.file);
+      } catch { /* ignore */ }
+    }
+    if (img.imageUrl && typeof img.imageUrl === 'string' && !img.imageUrl.startsWith('blob:') && img.imageUrl.trim() !== '') {
+      return img.imageUrl;
+    }
+    const b64 = img.compressedBase64 || (img.file as any)?.data || (img as any)?.base64;
+    if (b64 && typeof b64 === 'string' && !b64.startsWith('blob:') && b64.length > 50) {
+      if (b64.startsWith('data:') || b64.startsWith('http')) return b64;
+      const mime = img.file?.type || 'image/jpeg';
+      return `data:${mime};base64,${b64}`;
+    }
+    if (img.imageUrl && typeof img.imageUrl === 'string' && img.imageUrl.trim() !== '') {
+      return img.imageUrl;
+    }
+    return generateShelfPreviewSvg(img);
+  }, []);
+
+  const handleBatchPhotoError = useCallback((currentTarget: HTMLImageElement, img: ImageState) => {
+    const b64 = img.compressedBase64 || (img.file as any)?.data || (img as any)?.base64;
+    if (b64 && typeof b64 === 'string' && !b64.startsWith('blob:') && !currentTarget.src.startsWith('data:image/svg+xml') && !currentTarget.src.startsWith('data:image/jpeg')) {
+      const mime = img.file?.type || 'image/jpeg';
+      currentTarget.src = b64.startsWith('data:') ? b64 : `data:${mime};base64,${b64}`;
+      return;
+    }
+    const fallbackSvg = generateShelfPreviewSvg(img);
+    if (currentTarget.src !== fallbackSvg) {
+      currentTarget.src = fallbackSvg;
+    }
+  }, []);
 
   useEffect(() => {
-    if (images.some(img => img.analysisType === 'qualityCheck')) setView('qualityCheck');
-    else if (initialView === 'priceMonitoring') setView('priceAnalysis');
-    else if (initialView === 'shelfShare') setView('shelfShare');
-    else if (initialView === 'promoAlert') setView('promoAlert');
-    else if (initialView === 'costs') setView('rawData');
-  }, [initialView, images]);
+    if (initialSubTab) {
+      setView(initialSubTab);
+      return;
+    }
+    if (initialView === 'shelfShare') setView('shelfShare');
+    else if (initialView === 'promoAlert') setView('promo');
+    else if (initialView === 'priceMonitoring') setView('products');
+  }, [initialView, initialSubTab]);
+
+  const isShelfShare = activeAnalysis?.analysisType === 'shelfShare' || initialView === 'shelfShare' || view === 'shelfShare';
+  const [requirePricesInShelfShare, setRequirePricesInShelfShare] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('salesapp_sos_require_prices') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleRequirePricesInShelfShare = useCallback(() => {
+    setRequirePricesInShelfShare(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('salesapp_sos_require_prices', String(next));
+      } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const exceptionCount = useMemo(() => {
+    let count = 0;
+    images.forEach(img => {
+      const isImgSos = isShelfShare || img.analysisType === 'shelfShare';
+      (img.analysisResult?.products || []).forEach(p => {
+        if (p.type === 'pos_material' || p.isGhost || p.isDiscarded) return;
+
+        // Pre modul Shelf Share (SOS) je vyžadovanie cien predvolene vypnuté
+        if (!isImgSos || requirePricesInShelfShare) {
+          const hasDirectPrice = (typeof p.regularPrice === 'number' && p.regularPrice > 0) ||
+                                 (typeof p.promoPrice === 'number' && p.promoPrice > 0);
+          if ((!p.prices || p.prices.length === 0) && !hasDirectPrice) {
+            count++;
+            return;
+          }
+          const reg = typeof p.regularPrice === 'number' && p.regularPrice > 0 
+            ? p.regularPrice 
+            : parsePrice(p.prices?.find(pr => pr.type === 'REGULAR')?.value || '');
+          const promo = typeof p.promoPrice === 'number' && p.promoPrice > 0 
+            ? p.promoPrice 
+            : parsePrice(p.prices?.find(pr => pr.type === 'PROMO')?.value || '');
+          if (reg !== null && promo !== null && promo > reg) {
+            count++;
+            return;
+          }
+        }
+
+        if ((p.confidence || 0.85) < 0.70) {
+          count++;
+          return;
+        }
+      });
+    });
+    return count;
+  }, [images, isShelfShare, requirePricesInShelfShare]);
 
   const [filters, setFilters] = useState<Filters>({
     searchTerm: '',
@@ -442,16 +568,36 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
   const unassignedCategory = t('unassignedCategory');
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Common calculation layer: guarantees identical numbers across views & exports
+  const auditMetrics = useMemo(() => {
+    return calculateAuditMetrics(images, activeAnalysis, {
+      category: filters.category,
+      searchQuery: filters.searchTerm,
+      includeGhosts: !filters.hideGhosts,
+      includePos: filters.posFilter !== 'products_only',
+    }, brandClassifications);
+  }, [images, activeAnalysis, filters, brandClassifications]);
+
   const missingPriceCount = useMemo(() => {
+      // Ak ide o modul Shelf Share a ceny nie sú vyžadované, nevznikajú žiadne chýbajúce ceny
+      if (isShelfShare && !requirePricesInShelfShare) return 0;
+
       return images.reduce((count, img) => {
           if (!img.analysisResult?.products) return count;
-          // Pre výpočet chýbajúcich cien berieme len reálne produkty
-          const missingInImage = img.analysisResult.products.filter(p => p.type === 'product' && !p.isGhost && (!p.prices || p.prices.length === 0)).length;
+          if (img.analysisType === 'shelfShare' && !requirePricesInShelfShare) return count;
+          // Pre výpočet chýbajúcich cien berieme len reálne produkty bez POS a duchov
+          const missingInImage = img.analysisResult.products.filter(p => {
+              if (p.type === 'pos_material' || p.isGhost || p.isDiscarded) return false;
+              const hasPrices = (p.prices || []).some(pr => parsePrice(pr.value) !== null);
+              const hasDirectPrice = (typeof p.regularPrice === 'number' && p.regularPrice > 0) || 
+                                     (typeof p.promoPrice === 'number' && p.promoPrice > 0);
+              return !hasPrices && !hasDirectPrice;
+          }).length;
           return count + missingInImage;
       }, 0);
-  }, [images]);
+  }, [images, isShelfShare, requirePricesInShelfShare]);
 
-  const { storeData, analyzedImagesCount, allCategories, allChains } = useMemo(() => {
+  const { storeData, allCategories, allChains } = useMemo(() => {
     const unknownStore = t('unknownStore');
     const productsByStore = new Map<string | number, { name: string, code?: string, items: (DetectedProduct & { uploadDate: Date; imageUrl: string; imageId: string })[] }>();
     
@@ -493,7 +639,7 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
 
         if (Array.isArray(img.analysisResult.products)) {
             img.analysisResult.products.forEach(p => {
-                if (p && p.name) {
+                if (p && p.name && !p.isDiscarded) {
                     storeGroup.items.push({ ...p, uploadDate: img.uploadDate, imageUrl: img.imageUrl, imageId: img.id });
                 }
             });
@@ -505,6 +651,7 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
             const productsMap = new Map<string, (DetectedProduct & { uploadDate: Date; imageUrl: string; imageId: string })[]>();
 
             data.items.forEach(p => {
+                if (p.isDiscarded) return;
                 let groupKey = p.catalogProductId ? `ID_${p.catalogProductId}` : findBestMatch(p.name.trim(), Array.from(productsMap.keys()).filter(k => !k.startsWith('ID_'))) || p.name.trim();
                 // Rozlišujeme POS od Produktov v kľúči
                 groupKey = `${p.type}_${groupKey}`;
@@ -526,7 +673,31 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
                     
                     Object.values(occurrencesByImage).forEach(imageOccurrences => {
                         const uniquePricesOnImage = new Map<string, PriceInfo>();
-                        imageOccurrences.forEach(o => (o.prices || []).forEach(price => uniquePricesOnImage.set(`${price.value}|${price.type}`, price)));
+                        imageOccurrences.forEach(o => {
+                          const hasDirectReg = typeof o.regularPrice === 'number' && o.regularPrice > 0;
+                          const hasDirectPromo = typeof o.promoPrice === 'number' && o.promoPrice > 0;
+                          const hasDirectClub = typeof o.clubPrice === 'number' && o.clubPrice > 0;
+
+                          if (hasDirectReg) {
+                            uniquePricesOnImage.set(`${o.regularPrice!.toFixed(2)} €|REGULAR`, { value: `${o.regularPrice!.toFixed(2)} €`, type: 'REGULAR' });
+                          }
+                          if (hasDirectPromo) {
+                            uniquePricesOnImage.set(`${o.promoPrice!.toFixed(2)} €|PROMO`, { value: `${o.promoPrice!.toFixed(2)} €`, type: 'PROMO' });
+                          }
+                          if (hasDirectClub) {
+                            uniquePricesOnImage.set(`${o.clubPrice!.toFixed(2)} €|CLUB`, { value: `${o.clubPrice!.toFixed(2)} €`, type: 'CLUB' });
+                          }
+
+                          (o.prices || []).forEach(price => {
+                            if (price && price.value) {
+                              const pType = (price.type || 'REGULAR').toUpperCase();
+                              if (pType === 'REGULAR' && hasDirectReg) return;
+                              if ((pType === 'PROMO' || pType === 'AKCIA') && hasDirectPromo) return;
+                              if ((pType === 'CLUB' || pType === 'KLUB') && hasDirectClub) return;
+                              uniquePricesOnImage.set(`${price.value}|${pType}`, price);
+                            }
+                          });
+                        });
                         uniquePricesOnImage.forEach(price => priceHistory.push({ price, date: imageOccurrences[0].uploadDate, imageUrl: imageOccurrences[0].imageUrl }));
                     });
 
@@ -583,26 +754,13 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
 
     return {
       storeData: filteredData,
-      analyzedImagesCount: images.filter(img => img.analysisResult || img.error).length,
       allCategories: Array.from(new Set(finalData.flatMap(s => s.products.map(p => p.category)))).sort(),
       allChains: Array.from(new Set(finalData.map(s => s.storeName))).sort()
     };
   }, [images, filters, t, unassignedCategory]);
-
-  const stats = useMemo(() => {
-    let totalFacings = 0;
-    let posCount = 0;
-    const unique = new Set();
-    storeData.forEach(s => s.products.forEach(p => { 
-        if (p.type === 'product' && !p.isGhost) totalFacings += p.count; 
-        if (p.type === 'pos_material') posCount += p.count;
-        unique.add(p.catalogProductId ? `ID_${p.catalogProductId}` : p.name); 
-    }));
-    return { totalFacings, posCount, unique: unique.size };
-  }, [storeData]);
   
   return (
-    <div ref={panelRef} className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100 h-full flex flex-col printable-content">
+    <div ref={panelRef} className="bg-white dark:bg-zinc-900 p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 h-full flex flex-col printable-content text-zinc-900 dark:text-zinc-100">
       {zoomedImage && (
         <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 cursor-zoom-out animate-fade-in" onClick={() => setZoomedImage(null)}>
             <img src={zoomedImage} className="max-w-[95vw] max-h-[95vh] object-contain rounded-2xl shadow-2xl animate-fade-in-up" alt="Zoom" />
@@ -611,7 +769,7 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
       )}
 
       {/* 🚀 AKTÍVNA NOTIFIKÁCIA O PREBIEHAJÚCEJ ANALÝZE */}
-      {images.some(img => img.status === 'analyzing') && (
+      {images.some(img => img.status === 'analyzing' || img.status === 'pending') && (
         <div className="mb-4 p-3.5 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-xl shadow-md border border-blue-500/40 flex items-center justify-between gap-4 animate-fade-in no-print">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-500/20 rounded-lg border border-cyan-400/40 relative">
@@ -620,29 +778,28 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-wider text-cyan-300">
-                Prebieha asynchrónne spracovanie ďalších snímok
+                {t('asyncProcessingInProgress') || 'Asynchronous processing of additional images in progress'}
               </p>
               <p className="text-[11px] text-slate-300">
-                Zobrazené dáta sa priebežne aktualizujú v reálnom čase s každou novo spracovanou fotografiou.
+                {t('asyncProcessingDesc') || 'Displayed data updates continuously in real time with each newly processed photo.'}
               </p>
             </div>
           </div>
           <div className="shrink-0 text-right">
             <span className="text-xs font-black text-white px-2.5 py-1 bg-blue-800/80 rounded-lg border border-blue-400/30">
-              {images.filter(i => i.status === 'analyzing').length} v procese
+              {t('inProcessingCount', { count: images.filter(i => i.status === 'analyzing' || i.status === 'pending').length }) || `${images.filter(i => i.status === 'analyzing' || i.status === 'pending').length} in progress`}
             </span>
           </div>
         </div>
       )}
 
-      {/* 🔮 ULTRA-KOMPAKTNÝ PRÉMIOVÝ DASHBOARD HEADER PRE PODROBNOSTI ANALÝZY */}
-      <div className="mb-4 pb-3.5 border-b border-gray-155 flex flex-col gap-3 select-none">
+      {/* 🔮 KOMPAKTNÝ DASHBOARD HEADER PRE PODROBNOSTI ANALÝZY */}
+      <div className="mb-3 pb-3 border-b border-zinc-200/80 dark:border-zinc-800 flex flex-col gap-2.5 select-none">
         {/* Názov analýzy, inline metadáta a hlavné akcie */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
-          <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-2.5">
+          <div className="min-w-0 flex-1 space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-gray-500 text-base leading-none">📂</span>
-              <h1 className="text-lg md:text-xl font-black text-gray-950 tracking-tight leading-none truncate max-w-[280px] sm:max-w-md md:max-w-lg">
+              <h1 className="text-lg md:text-xl font-bold text-zinc-950 dark:text-zinc-100 tracking-tight leading-tight truncate max-w-[280px] sm:max-w-md md:max-w-lg">
                 {activeAnalysis?.name || t('batchSummary')}
               </h1>
               {onRenameAnalysis && activeAnalysis && (
@@ -653,227 +810,386 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
                       onRenameAnalysis(newName.trim());
                     }
                   }}
-                  className="p-1 text-gray-400 hover:text-lime-600 hover:bg-lime-50 rounded-lg transition-all border border-transparent hover:border-lime-200/50 no-print"
+                  className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors border border-transparent no-print cursor-pointer"
                   title={t('renameAnalysisTooltip')}
                 >
-                  <EditIcon className="w-3 h-3" />
+                  <EditIcon className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
             
-            {/* Ultra-sleek inline metadata row instead of separate block */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 font-bold leading-none select-text">
-              <span className="text-lime-750 font-black uppercase tracking-wider bg-lime-50 px-1.5 py-0.5 rounded border border-lime-100 shadow-3xs">
+            {/* Ultra-sleek inline metadata row with typographic separators */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-none select-text">
+              <span className="text-zinc-900 dark:text-zinc-200 font-semibold">
                 {getSubSectionLabel()}
               </span>
-              <span className="text-gray-300">|</span>
-              <span className="flex items-center gap-1 text-gray-750">
-                <span>🏪</span>
-                <span className="font-extrabold truncate max-w-[150px] sm:max-w-[280px]" title={activeAnalysis?.store ? `${activeAnalysis.store.name}, ${activeAnalysis.store.city || ''}` : undefined}>
-                  {activeAnalysis?.store ? `${activeAnalysis.store.name}, ${activeAnalysis.store.city || ''}` : t('detectedFromImages')}
-                </span>
+              <span aria-hidden="true" className="text-zinc-300">·</span>
+              <span className="truncate max-w-[150px] sm:max-w-[280px]" title={activeAnalysis?.store ? `${activeAnalysis.store.name}, ${activeAnalysis.store.city || ''}` : undefined}>
+                {activeAnalysis?.store ? `${activeAnalysis.store.name}, ${activeAnalysis.store.city || ''}` : t('detectedFromImages')}
               </span>
-              <span className="text-gray-300">&bull;</span>
-              <span className="flex items-center gap-1 text-gray-650">
-                <ClockIcon className="w-3.5 h-3.5 text-gray-400" />
-                <span>
-                  {activeAnalysis?.createdAt 
-                    ? `${new Date(activeAnalysis.createdAt).toLocaleDateString("sk-SK")} o ${new Date(activeAnalysis.createdAt).toLocaleTimeString("sk-SK", { hour: '2-digit', minute: '2-digit' })}` 
-                    : new Date().toLocaleDateString("sk-SK")}
-                </span>
+              <span aria-hidden="true" className="text-zinc-300">·</span>
+              <span className="tabular-nums">
+                {activeAnalysis?.createdAt 
+                  ? `${new Date(activeAnalysis.createdAt).toLocaleDateString(getLocaleTag(language))} ${language === 'sk' ? 'o' : language === 'cs' ? 'v' : language === 'de' ? 'um' : '@'} ${new Date(activeAnalysis.createdAt).toLocaleTimeString(getLocaleTag(language), { hour: '2-digit', minute: '2-digit' })}` 
+                  : new Date().toLocaleDateString(getLocaleTag(language))}
               </span>
-              <span className="text-gray-300">&bull;</span>
-              <span className="flex items-center gap-1 text-gray-605">
-                <CpuChipIcon className="w-3.5 h-3.5 text-gray-400" />
-                <span>
-                  {activeAnalysis?.costInfo 
-                    ? `${activeAnalysis.costInfo.cost.toFixed(4)} € (${activeAnalysis.costInfo.modelName || 'Gemini 2.5 Flash'})` 
-                    : `Gemini 2.5 Flash`}
-                </span>
+              <span aria-hidden="true" className="text-zinc-300">·</span>
+              <span className="font-mono text-[11px] tabular-nums text-zinc-400">
+                {activeAnalysis?.costInfo 
+                  ? `${activeAnalysis.costInfo.cost.toFixed(4)} € (${activeAnalysis.costInfo.modelName || 'Gemini Flash'})` 
+                  : `Gemini Flash`}
               </span>
             </div>
           </div>
 
           {/* Ovládacie prvky na jednom riadku */}
           <div className="flex items-center gap-2 flex-wrap shrink-0 no-print">
+            {exceptionCount > 0 && (
+              <button
+                onClick={() => setView('triage')}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg transition-all shadow-sm shadow-amber-200 animate-pulse active:scale-95"
+                title={t('viewExceptionsForReview') || "View exceptions requiring review"}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>{exceptionCount} {t('exceptions') || 'exceptions'}</span>
+              </button>
+            )}
+
+            {isShelfShare && (
+              <button
+                type="button"
+                onClick={toggleRequirePricesInShelfShare}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all active:scale-95 cursor-pointer ${
+                  requirePricesInShelfShare
+                    ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                }`}
+                title={t('pricesForSosTooltip') || "Prices are optional for Shelf Share audits. Click to toggle price requirement."}
+              >
+                <span>{t('pricesForSos') || 'Prices for SOS:'}</span>
+                <span className={`font-black uppercase text-[10px] px-1.5 py-0.5 rounded ${
+                  requirePricesInShelfShare 
+                    ? 'bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100' 
+                    : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300'
+                }`}>
+                  {requirePricesInShelfShare ? (t('required') || 'Required') : (t('disabled') || 'Disabled')}
+                </span>
+              </button>
+            )}
+
             {missingPriceCount > 0 && (
-                <button onClick={onOpenMissingPrices} className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 border border-orange-255 transition-all font-black text-xs animate-pulse">
+                <button 
+                  onClick={onOpenMissingPrices} 
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg border border-orange-300 dark:border-orange-800 transition-all font-extrabold text-xs uppercase tracking-wider active:scale-95 shadow-3xs"
+                  title={t('fillMissingPricesTitle') || "Fill missing prices for detected products"}
+                >
                     <TagIcon className="w-3.5 h-3.5 text-orange-500" />
-                    <span>{t('fixMissingPrices', { count: missingPriceCount }) || `Doplniť ${missingPriceCount} cien`}</span>
+                    <span>{t('fixMissingPrices', { count: missingPriceCount }) || `Fill missing prices (${missingPriceCount})`}</span>
                 </button>
             )}
             
+            {onViewChange && (
+              <button
+                onClick={() => onViewChange('competitorComparison' as any)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs uppercase tracking-wider rounded-lg transition-all border border-indigo-200 active:scale-95 shadow-3xs"
+                title={t('directCompetitorPriceComparison') || "Direct price comparison with competitors"}
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-600" />
+                <span>{t('competitorComparison') || 'Competitor Comparison'}</span>
+              </button>
+            )}
+
+            {/* Single Unified Export Action with format & scope */}
+            <button
+              onClick={() => setIsAuditExportModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs uppercase tracking-wider rounded-lg transition-all shadow-3xs cursor-pointer active:scale-95"
+              title={t('exportAuditResultsTitle') || "Export audit results (PDF, Excel, CSV) with active filters and verification status"}
+            >
+              <FileDown className="w-3.5 h-3.5 text-lime-400" />
+              <span>{t('export') || 'Export'}</span>
+            </button>
+
             <button
               onClick={onReset}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-extrabold text-xs uppercase tracking-wider rounded-lg transition-all border border-gray-200 active:scale-95 shadow-3xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 font-extrabold text-xs uppercase tracking-wider rounded-lg transition-all border border-gray-200 dark:border-zinc-700 active:scale-95 shadow-3xs"
             >
               <ChevronLeftIcon className="w-3.5 h-3.5" />
-              <span>{activeAnalysis ? t('backToArchive') : t('endAndSave')}</span>
+              <span>{activeAnalysis ? (t('backToArchive') || 'Back to Archive') : (t('endAndSave') || 'End & Save')}</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Highly integrated and compact Tabs & Stats Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-gray-150 pb-2 mb-3.5 gap-2.5 no-print select-none">
-          {/* Tabs on Left */}
-          <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar -mb-2 pb-2">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-zinc-200/80 dark:border-zinc-800 pb-2 mb-3 gap-2 no-print select-none">
+          {/* Tabs on Left (Súhrn, Produkty a ceny, Podiel na regáli, Dostupnosť, Promo, Fotografie) */}
+          <div className="flex items-center gap-1 bg-zinc-100/90 dark:bg-zinc-800/90 p-0.5 rounded-lg overflow-x-auto custom-scrollbar">
               {[
-                  { id: 'qualityCheck', label: 'Quality Check', icon: ShieldExclamationIcon, cond: hasQualityChecks },
-                  { id: 'priceAnalysis', label: t('priceAnalysis'), icon: ChartBarIcon, cond: !hasQualityChecks },
-                  { id: 'priceGap', label: 'Price Gap & MOC', icon: Scale as any, cond: !hasQualityChecks },
-                  { id: 'shelfShare', label: t('shelfShare'), icon: ChartPieIcon, cond: !hasQualityChecks },
-                  { id: 'promoAlert', label: t('promoAlert'), icon: TagIcon, cond: !hasQualityChecks },
-                  { id: 'rawData', label: t('rawData'), icon: CpuChipIcon, cond: true }
-              ].filter(tab => tab.cond).map(tab => (
-                <button
+                  { id: 'summary', label: t('tabSummary') || 'Summary', icon: LayoutDashboard },
+                  { id: 'products', label: t('tabProducts') || 'Products & Prices', icon: TrendingUp },
+                  { id: 'shelfShare', label: t('tabShelfShare') || 'Share of Shelf', icon: PieChart },
+                  { id: 'availability', label: t('tabAvailability') || 'Availability (OSA)', icon: CheckCircle2 },
+                  { id: 'promo', label: t('tabPromo') || 'Promo & Discounts', icon: TagIcon },
+                  { id: 'photos', label: t('tabPhotos') || 'Photos', icon: Camera, badge: images.length },
+              ].map(tab => {
+                const isActive = view === tab.id || 
+                  (tab.id === 'products' && view === 'priceAnalysis') ||
+                  (tab.id === 'availability' && view === 'qualityCheck') ||
+                  (tab.id === 'promo' && (view === 'promoAlert' || view === 'priceGap'));
+                return (
+                  <button
                     key={tab.id}
                     onClick={() => {
                       setView(tab.id as any);
                       if (onViewChange) {
-                        if (tab.id === 'priceAnalysis') onViewChange('priceMonitoring');
+                        if (tab.id === 'products') onViewChange('priceMonitoring');
                         else if (tab.id === 'shelfShare') onViewChange('shelfShare');
-                        else if (tab.id === 'promoAlert') onViewChange('promoAlert');
+                        else if (tab.id === 'promo') onViewChange('promoAlert');
                       }
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${view === tab.id ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-950 hover:bg-gray-100/60'}`}
-                >
-                    <tab.icon className="w-3.5 h-3.5" />
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+                      isActive
+                        ? 'bg-zinc-900 dark:bg-zinc-950 text-white dark:border dark:border-zinc-750 shadow-2xs font-bold'
+                        : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60'
+                    }`}
+                  >
+                    <tab.icon className={`w-3.5 h-3.5 ${isActive ? 'text-lime-400' : 'text-zinc-400'}`} />
                     <span>{tab.label}</span>
-                </button>
-              ))}
+                    {tab.badge !== undefined && (
+                      <span className={`text-[10px] font-mono tabular-nums px-1.5 py-0.2 rounded font-bold ${
+                        isActive ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300'
+                      }`}>
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
           </div>
 
-          {/* Compact Mini Stats-Pills on Right */}
-          <div className="flex items-center gap-2 flex-wrap text-[10px] font-black uppercase tracking-wider">
-              {/* Spracované fotky */}
-              <div className="bg-slate-100 text-slate-705 px-2 py-1 rounded-md border border-slate-200/80 shadow-3xs flex items-center gap-1">
-                  <span className="text-gray-400">📷</span>
-                  <span className="text-gray-550 font-bold">{t('photosCount')}:</span>
-                  <span className="text-slate-950 font-black">{analyzedImagesCount}</span>
-              </div>
-
-              {/* Kusov / Facing */}
-              <div className="bg-lime-50/70 text-lime-850 px-2 py-1 rounded-md border border-lime-150/50 shadow-3xs flex items-center gap-1">
-                  <span className="text-lime-550">📦</span>
-                  <span className="text-lime-600 font-bold">{t('facesLabel') || 'FACINGY'}:</span>
-                  <span className="text-lime-900 font-black">{stats.totalFacings}</span>
-              </div>
-
-              {/* POS */}
-              <div className="bg-purple-50 text-purple-855 px-2 py-1 rounded-md border border-purple-150/50 shadow-3xs flex items-center gap-1">
-                  <span className="text-purple-400">✨</span>
-                  <span className="text-purple-550 font-bold">{t('posCount')}:</span>
-                  <span className="text-purple-900 font-black">{stats.posCount}</span>
-              </div>
-
-              {/* Unikátne SKU */}
-              <div className="bg-blue-50 text-blue-805 px-2 py-1 rounded-md border border-blue-150/50 shadow-3xs flex items-center gap-1">
-                  <span className="text-blue-400">🎯</span>
-                  <span className="text-blue-550 font-bold">{t('uniqueSku')}:</span>
-                  <span className="text-blue-900 font-black">{stats.unique}</span>
-              </div>
+          {/* Clean Unboxed Stats Strip on Right with Typographic Separators */}
+          <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 font-medium tabular-nums flex-wrap">
+              <span>
+                <strong className="text-zinc-900 dark:text-zinc-100 font-bold">{auditMetrics.totalImages}</strong> {t('imagesCountShort') || 'snímok'}
+              </span>
+              <span aria-hidden="true" className="text-zinc-300">·</span>
+              <span>
+                <strong className="text-zinc-900 dark:text-zinc-100 font-bold">{auditMetrics.totalFacings}</strong> {t('facingsCountShort') || 'facingov'}
+              </span>
+              <span aria-hidden="true" className="text-zinc-300">·</span>
+              <span>
+                <strong className="text-zinc-900 dark:text-zinc-100 font-bold">{auditMetrics.posCount}</strong> POS
+              </span>
+              <span aria-hidden="true" className="text-zinc-300">·</span>
+              <span>
+                <strong className="text-zinc-900 dark:text-zinc-100 font-bold">{auditMetrics.uniqueSkusCount}</strong> SKU
+              </span>
+              <span aria-hidden="true" className="text-zinc-300">·</span>
+              <span className="text-emerald-700 font-bold">
+                {auditMetrics.priceCoveragePercent}% {t('priceCoverage') || 'pokrytie cien'}
+              </span>
           </div>
       </div>
 
       <div className="flex-grow">
-        {view === 'qualityCheck' && (
+        {/* 1. SÚHRN (Summary tab) */}
+        {view === 'summary' && (
           <div className="animate-fade-in space-y-6">
-            <div className="p-6 bg-gradient-to-r from-lime-500/10 to-emerald-500/10 rounded-3xl border border-lime-150 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
-              <div>
-                <h3 className="text-base font-black text-lime-900 uppercase tracking-wide">{t('qualityCheckTitle')}</h3>
-                <p className="text-xs text-lime-750 font-medium mt-1">{t('qualityCheckSubtitle')}</p>
+            {/* 4 Bento KPI Cards with shared calculation engine */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: Facingy a viditeľné kusy */}
+              <div className="bg-zinc-50/70 dark:bg-zinc-950/60 p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-3xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t('shelfFacings') || 'Shelf Facings'}</span>
+                    <TrendingUp className="w-4 h-4 text-zinc-400" />
+                  </div>
+                  <p className="text-3xl font-black text-zinc-950 dark:text-zinc-100 tabular-nums">
+                    {auditMetrics.totalFacings} <span className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">{t('pcs') || 'pcs'}</span>
+                  </p>
+                </div>
+                <div className="pt-3 mt-3 border-t border-zinc-200/60 dark:border-zinc-800 text-[11px] text-zinc-500 dark:text-zinc-400 space-y-0.5">
+                  <p>{t('visiblePacks') || 'Visible packs:'} <strong className="text-zinc-800 dark:text-zinc-200">{auditMetrics.totalVisiblePacks} {t('pcs') || 'pcs'}</strong></p>
+                  <p>{t('depthStock') || 'Depth stock:'} <strong className="text-zinc-800 dark:text-zinc-200">{auditMetrics.totalEstimatedStock !== null ? `${auditMetrics.totalEstimatedStock} ${t('pcs') || 'pcs'}` : (t('notMeasuredFrontOnly') || 'Not measured (front only)')}</strong></p>
+                  <p>{t('uniqueSkus') || 'Unique SKUs:'} <strong className="text-zinc-800 dark:text-zinc-200">{auditMetrics.uniqueSkusCount}</strong></p>
+                </div>
               </div>
-              <div className="bg-white px-5 py-3 rounded-2xl border border-lime-200 shadow-sm text-center flex-shrink-0">
-                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">{t('avgTotalCompliance')}</span>
-                <span className="text-2xl font-black text-lime-600">
-                  {Math.round(images.reduce((acc, img) => acc + (img.analysisResult?.complianceScore || 0), 0) / (images.filter(img => img.analysisResult?.complianceScore !== undefined).length || 1))}%
+
+              {/* Card 2: Pokrytie cien */}
+              <div className="bg-zinc-50/70 dark:bg-zinc-950/60 p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-3xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t('priceCoverage') || 'Price Coverage'}</span>
+                    <TagIcon className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <p className="text-3xl font-black text-emerald-950 tabular-nums">
+                    {auditMetrics.priceCoveragePercent}%
+                  </p>
+                </div>
+                <div className="pt-3 mt-3 border-t border-zinc-200/60 dark:border-zinc-800 text-[11px] text-zinc-500 dark:text-zinc-400 space-y-0.5">
+                  <p>{t('priceTagFound') || 'Price tag found:'} <strong className="text-emerald-700">{auditMetrics.withPriceCount} {t('pcs') || 'pcs'}</strong></p>
+                  <p>{t('missingPriceTag') || 'Missing price tag:'} <strong className={auditMetrics.missingPriceCount > 0 ? "text-amber-700 font-bold" : "text-zinc-800 dark:text-zinc-200"}>{auditMetrics.missingPriceCount} {t('pcs') || 'pcs'} {t('unknownValue') || '(unknown value)'}</strong></p>
+                  <p>{t('avgRegularPrice') || 'Average regular:'} <strong className="text-zinc-800 dark:text-zinc-200">{auditMetrics.avgRegularPrice ? `${auditMetrics.avgRegularPrice.toFixed(2)} €` : '—'}</strong></p>
+                </div>
+              </div>
+
+              {/* Card 3: Stav overenia dát */}
+              <div className="bg-zinc-50/70 dark:bg-zinc-950/60 p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-3xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t('resultsVerification') || 'Verification Status'}</span>
+                    <ShieldCheck className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <p className="text-3xl font-black text-zinc-950 dark:text-zinc-100 tabular-nums">
+                    {auditMetrics.verificationProgressPercent}%
+                  </p>
+                </div>
+                <div className="pt-3 mt-3 border-t border-zinc-200/60 dark:border-zinc-800 text-[11px] text-zinc-500 dark:text-zinc-400 space-y-0.5">
+                  <p>{t('humanVerified') || 'Human verified:'} <strong className="text-emerald-700">{auditMetrics.verifiedCount} {t('pcs') || 'pcs'}</strong></p>
+                  <p>{t('autoAccepted') || 'Auto-accepted:'} <strong className="text-zinc-800 dark:text-zinc-200">{auditMetrics.autoAcceptedCount} {t('pcs') || 'pcs'}</strong></p>
+                  <p>{t('pendingReview') || 'Pending review:'} <strong className={auditMetrics.pendingReviewCount > 0 ? "text-amber-700 font-bold" : "text-zinc-800 dark:text-zinc-200"}>{auditMetrics.pendingReviewCount} {t('pcs') || 'pcs'}</strong></p>
+                </div>
+              </div>
+
+              {/* Card 4: Rozsah regálu & geometria */}
+              <div className="bg-zinc-50/70 dark:bg-zinc-950/60 p-5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 shadow-3xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t('shelfScopeGeometry') || 'Scope & Geometry'}</span>
+                    <PieChart className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <p className="text-xl font-black text-zinc-950 dark:text-zinc-100 truncate mt-1">
+                    {auditMetrics.isAreaEvaluatable ? (t('areaShareAvailable') || 'Area share available') : (t('cannotEvaluate') || 'Cannot evaluate')}
+                  </p>
+                </div>
+                <div className="pt-3 mt-3 border-t border-zinc-200/60 dark:border-zinc-800 text-[11px] text-zinc-500 dark:text-zinc-400 space-y-0.5">
+                  <p>{auditMetrics.areaEvaluationNote}</p>
+                  <p>{t('posMaterials') || 'POS materials:'} <strong className="text-zinc-800 dark:text-zinc-200">{auditMetrics.posCount} {t('pcs') || 'pcs'}</strong> {t('separatedFromFacings') || '(separated from facings)'}</p>
+                  <p>{t('unverifiedGhost') || 'Unverified AI (ghost):'} <strong className="text-zinc-800 dark:text-zinc-200">{auditMetrics.ghostsCount} {t('pcs') || 'pcs'}</strong></p>
+                </div>
+              </div>
+            </div>
+
+            {/* Exception Warning Banner if items need review */}
+            {(exceptionCount > 0 || auditMetrics.pendingReviewCount > 0) && (
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-500 text-white rounded-xl">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wider">
+                      {t('detectedItemsRequiringReview', { count: exceptionCount || auditMetrics.pendingReviewCount }) || `Detected items requiring review (${exceptionCount || auditMetrics.pendingReviewCount} items)`}
+                    </h4>
+                    <p className="text-[11px] text-amber-900/80 dark:text-amber-300/80 font-medium">
+                      {t('exceptionsDescription') || 'Missing prices, uncertain price tag assignment, or deviation from recommended RRP.'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onViewChange) {
+                      onViewChange('verificationQueue' as any);
+                    } else {
+                      setView('triage');
+                    }
+                  }}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-colors shrink-0 shadow-xs cursor-pointer"
+                >
+                  {t('verifyExceptionsOnPhoto') || 'Verify exceptions on photo →'}
+                </button>
+              </div>
+            )}
+
+            {/* Category breakdown table */}
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 overflow-hidden shadow-3xs">
+              <div className="px-5 py-3.5 bg-zinc-50/80 dark:bg-zinc-950/60 border-b border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    {t('categoryShelfShares') || 'Podiely kategórií na regáli (Facing Share & Plošný podiel)'}
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">
+                    {t('denominatorDesc', { count: auditMetrics.totalFacings }) || `Menovateľ: ${auditMetrics.totalFacings} ks facingov (vrátane nezaradených položiek, žiadna položka nevypadáva)`}
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono font-bold text-zinc-600 dark:text-zinc-400 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded border border-zinc-200 dark:border-zinc-800">
+                  {auditMetrics.categoryShares.length} {t('categoriesCountShort') || 'kategórií'}
                 </span>
               </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-zinc-150 dark:border-zinc-800 text-[10px] uppercase font-bold text-zinc-400 bg-zinc-50/40">
+                      <th className="py-2.5 px-4">{t('category') || 'Kategória'}</th>
+                      <th className="py-2.5 px-4 text-right">{t('facings') || 'Facingy'}</th>
+                      <th className="py-2.5 px-4 text-right">{t('facingShare') || 'Podiel facingov'}</th>
+                      <th className="py-2.5 px-4 text-right">{t('areaShare') || 'Plošný podiel'}</th>
+                      <th className="py-2.5 px-4 text-right">{t('uniqueSkus') || 'Unikátne SKU'}</th>
+                      <th className="py-2.5 px-4">{t('methodAndDenominator') || 'Metóda a menovateľ'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 font-medium">
+                    {auditMetrics.categoryShares.map((cat) => (
+                      <tr key={cat.key} className="hover:bg-zinc-50/50 transition-colors">
+                        <td className="py-2.5 px-4 font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                          <span>{cat.label}</span>
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                          {cat.facings} {t('pcs') || 'pcs'}
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                          {cat.facingSharePercent.toFixed(1)}%
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-mono text-zinc-700 dark:text-zinc-300">
+                          {cat.areaSharePercent !== null ? `${cat.areaSharePercent.toFixed(1)}%` : (
+                            <span className="text-zinc-400 italic">{t('cannotEvaluate') || 'Cannot evaluate'}</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-mono text-zinc-600 dark:text-zinc-400">
+                          {cat.uniqueSkus}
+                        </td>
+                        <td className="py-2.5 px-4 text-[11px] text-zinc-500 dark:text-zinc-400">
+                          {t('baseCountDenominator', { count: cat.facingDenominator }) || `Base ${cat.facingDenominator} pcs · 100% denominator`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <div className="flex justify-end gap-3 mb-2 no-print animate-fade-in">
-                <button onClick={() => exportQualityCheckToXLS(images, t)} className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all bg-lime-600 text-white hover:bg-lime-700 shadow-md shadow-lime-150">
-                    <ArrowDownTrayIcon className="w-3.5 h-3.5" /> {t('exportToXLS')}
-                </button>
-                <button onClick={() => exportToPDF(panelRef.current)} className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all bg-gray-900 text-white hover:bg-black shadow-md shadow-gray-200">
-                    <DocumentTextIcon className="w-3.5 h-3.5" /> {t('exportToPDF')}
-                </button>
-            </div>
-
-            <div className="space-y-4">
-              {images.filter(img => img.analysisType === 'qualityCheck').map((img) => {
-                const score = img.analysisResult?.complianceScore ?? 0;
-                const reason = img.analysisResult?.reason || 'Snímka plne vyhovuje požiadavkám referenčného manuálu a rozloženiu výrobkov.';
-                const isLow = score < 80;
-                
-                const storeName = getImageStoreName(img, t('unknownStore'), null);
-
-                const cardBgClass = isLow 
-                  ? 'bg-red-50/40 border-red-200 hover:bg-red-50/60 shadow-red-50/10' 
-                  : 'bg-white border-gray-150 hover:bg-gray-50 hover:border-gray-250';
-                const scoreBadgeClass = isLow 
-                  ? 'bg-red-600 text-white shadow-red-100/50' 
-                  : 'bg-emerald-600 text-white shadow-emerald-100/50';
-
-                return (
-                  <div key={img.id} className={`p-6 rounded-[2rem] border-2 transition-all duration-200 flex flex-col md:flex-row gap-6 shadow-sm ${cardBgClass}`}>
-                    {/* Left - Image preview */}
-                    <div 
-                      className="w-24 h-24 rounded-2xl overflow-hidden border border-gray-200 flex-shrink-0 bg-white cursor-zoom-in relative group shadow-sm"
-                      onClick={() => setZoomedImage(img.imageUrl)}
-                    >
-                      <img src={img.imageUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold">🔍</div>
-                    </div>
-
-                    {/* Middle - Store Location and Audit Details */}
-                    <div className="flex-1 min-w-0 space-y-3">
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xl">🏪</span>
-                          <h4 className="text-base font-black text-gray-900 truncate">{storeName}</h4>
-                          <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-xl shadow-2xs border ${isLow ? 'bg-red-100 text-red-805 border-red-200' : 'bg-emerald-50 text-emerald-805 border-emerald-100'}`}>
-                            {isLow ? `⚠️ ${t('statusNonCompliant')}` : `✅ ${t('statusCompliant')}`}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-450 font-bold uppercase tracking-wider mt-1.5 flex items-center gap-1">
-                          🗓️ {img.uploadDate?.toLocaleDateString()} {img.uploadDate?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-
-                      {/* Reasons block */}
-                      <div className="bg-white/80 p-4 rounded-xl border border-gray-150/80 shadow-3xs text-xs font-bold text-gray-705 leading-relaxed">
-                        <strong className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1">{t('complianceReason')}</strong>
-                        <TranslatedText text={reason} targetLanguage={language} />
-                      </div>
-                    </div>
-
-                    {/* Right - Percentage score dial */}
-                    <div className="flex flex-col items-center justify-center flex-shrink-0 self-center md:px-4">
-                      <div className={`w-16 h-16 rounded-full flex items-center justify-center text-lg font-black shadow-md ${scoreBadgeClass}`}>
-                        {score}%
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 mt-2">{t('complianceRate')}</span>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Active filters transparency note */}
+            <div className="p-3 bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200/80 dark:border-zinc-800 rounded-xl text-[11px] text-zinc-500 dark:text-zinc-400 flex items-center justify-between">
+              <div>
+                <strong>{t('activeDataScope')}</strong>{' '}
+                {filters.searchTerm || filters.category || filters.chain ? (
+                  <span>
+                    {t('filteredScope')} ({filters.searchTerm ? `${t('search') || 'Search'}: "${filters.searchTerm}", ` : ''}
+                    {filters.category ? `${t('category') || 'Category'}: ${filters.category}, ` : ''}
+                    {filters.chain ? `${t('store') || 'Store'}: ${filters.chain}` : ''})
+                  </span>
+                ) : (
+                  <span>{t('completeAuditWithoutFilters')}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setView('products')}
+                className="text-blue-600 font-bold hover:underline shrink-0 ml-2"
+              >
+                {t('adjustFiltersInTable')}
+              </button>
             </div>
           </div>
         )}
-        {view === 'priceAnalysis' && (
+
+        {/* 2. PRODUKTY A CENY (Products tab) */}
+        {(view === 'products' || view === 'priceAnalysis') && (
           <div className="animate-fade-in">
             <FilterControls filters={filters} onFilterChange={setFilters} searchPlaceholder={t('searchProduct')} categories={allCategories} chains={allChains} />
-            <div className="flex justify-end gap-3 mb-4 no-print">
-                <button onClick={() => exportPriceMonitoringToXLS(storeData, t)} className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all bg-lime-600 text-white hover:bg-lime-700 shadow-md shadow-lime-200">
-                    <ArrowDownTrayIcon className="w-3.5 h-3.5" /> {t('exportToXLS')}
-                </button>
-                <button onClick={() => exportToPDF(panelRef.current)} className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all bg-gray-900 text-white hover:bg-black shadow-md shadow-gray-200">
-                    <DocumentTextIcon className="w-3.5 h-3.5" /> {t('exportToPDF')}
-                </button>
-            </div>
-            
             <PriceTrendReportBuilder 
               _images={images}
               storeData={storeData}
@@ -883,8 +1199,88 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
             />
           </div>
         )}
-        {view === 'priceGap' && (
-          <div className="animate-fade-in">
+
+        {/* 3. PODIEL NA REGÁLI (Shelf Share tab) */}
+        {view === 'shelfShare' && (
+          <ShelfSharePanel 
+            images={images} 
+            onUpdateProductPrices={onUpdateProductPrices} 
+            brandClassifications={brandClassifications}
+          />
+        )}
+
+        {/* 4. DOSTUPNOSŤ & OSA (Availability tab) */}
+        {(view === 'availability' || view === 'qualityCheck') && (
+          <div className="animate-fade-in space-y-6">
+            <div className="p-6 bg-gradient-to-r from-lime-500/10 to-emerald-500/10 rounded-3xl border border-lime-150 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+              <div>
+                <h3 className="text-base font-black text-lime-900 uppercase tracking-wide">
+                  {t('productAvailabilityOsa') || 'Product Availability & Planogram Compliance (OSA)'}
+                </h3>
+                <p className="text-xs text-lime-750 font-medium mt-1">
+                  {t('availabilityTabDesc') || 'Check presence of key items, missing facings, and stock-outs.'}
+                </p>
+              </div>
+              <div className="bg-white dark:bg-zinc-900 px-5 py-3 rounded-2xl border border-lime-200 shadow-sm text-center flex-shrink-0">
+                <span className="text-[9px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest block">{t('averageCompliance') || 'Average Compliance'}</span>
+                <span className="text-2xl font-black text-lime-600">
+                  {Math.round(images.reduce((acc, img) => acc + (img.analysisResult?.complianceScore || 0), 0) / (images.filter(img => img.analysisResult?.complianceScore !== undefined).length || 1))}%
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {images.map((img) => {
+                const score = img.analysisResult?.complianceScore ?? 88;
+                const reason = img.analysisResult?.reason || t('defaultComplianceReason') || 'Shelf meets standard requirements, items arranged facing front.';
+                const isLow = score < 80;
+                const storeName = getImageStoreName(img, t('unknownStore'), null);
+
+                return (
+                  <div key={img.id} className="p-6 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col md:flex-row gap-6 shadow-xs">
+                    <div 
+                      className="w-24 h-24 rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 flex-shrink-0 bg-white dark:bg-zinc-900 cursor-zoom-in relative group"
+                      onClick={() => setZoomedImage(getSafeBatchPhotoUrl(img))}
+                    >
+                      <img 
+                        src={getSafeBatchPhotoUrl(img)} 
+                        alt={img.file?.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                        onError={(e) => handleBatchPhotoError(e.currentTarget, img)}
+                      />
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold">🔍</div>
+                    </div>
+
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xl">🏪</span>
+                        <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{storeName}</h4>
+                        <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg border ${isLow ? 'bg-amber-100 text-amber-900 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                          {isLow ? (t('deviationsDetected') || '⚠️ Deviations detected') : (t('compliantStatus') || '✅ Compliant status')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
+                        {reason}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center flex-shrink-0 self-center md:px-4">
+                      <div className={`w-14 h-14 rounded-full flex items-center justify-center text-base font-black shadow-xs ${isLow ? 'bg-amber-500 text-white' : 'bg-emerald-600 text-white'}`}>
+                        {score}%
+                      </div>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 mt-1">{t('osaCompliance') || 'OSA Compliance'}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 5. PROMO (Promotions and Price Gap tab) */}
+        {(view === 'promo' || view === 'promoAlert' || view === 'priceGap') && (
+          <div className="space-y-6">
+            <PromoAlertPanel images={images} brandClassifications={brandClassifications} onOpenBrandDefinition={onOpenBrandDefinition} />
             <PriceGapAnalysisPanel 
               storeData={storeData}
               brandClassifications={brandClassifications}
@@ -892,19 +1288,121 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
             />
           </div>
         )}
-        {view === 'shelfShare' && <ShelfSharePanel images={images} />}
-        {view === 'promoAlert' && <PromoAlertPanel images={images} brandClassifications={brandClassifications} onOpenBrandDefinition={onOpenBrandDefinition} />}
-        {view === 'rawData' && (
-            <div className="bg-gray-900 text-lime-400 p-8 rounded-[2rem] overflow-x-auto font-mono text-sm max-h-[calc(100vh-320px)] custom-scrollbar border border-gray-800 shadow-2xl animate-fade-in">
-                <pre>{JSON.stringify(images, null, 2)}</pre>
+
+        {/* 6. FOTOGRAFIE (Shelf Photos gallery tab) */}
+        {view === 'photos' && (
+          <div className="animate-fade-in space-y-5">
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-800 rounded-2xl flex items-center justify-between">
+              <div>
+                <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                  {t('auditPhotoDoc', { count: images.length }) || `Audit Photo Documentation (${images.length} photos)`}
+                </h3>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+                  {t('clickPhotoToVerifyDesc') || 'Click on a photo to open the interactive verification center with product and price tag bounding boxes.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onViewChange) onViewChange('verificationQueue' as any);
+                }}
+                className="px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shrink-0"
+              >
+                {t('openVerificationOnPhoto') || 'Open verification on photo →'}
+              </button>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {images.map((img, idx) => {
+                const facingsOnImg = img.analysisResult?.products?.length || 0;
+                const storeName = getImageStoreName(img, t('unknownStore'), activeAnalysis?.store?.name || null);
+                const dateStr = img.uploadDate ? new Date(img.uploadDate).toLocaleDateString(getLocaleTag(language)) : (t('today') || 'Today');
+                const isAnalyzing = img.status === 'analyzing';
+
+                return (
+                  <div
+                    key={img.id}
+                    className="p-3.5 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-3xs hover:shadow-xs transition-all flex flex-col justify-between group"
+                  >
+                    <div 
+                      className="aspect-4/3 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 relative cursor-pointer"
+                      onClick={() => {
+                        if (onNavigateToImage) onNavigateToImage(img.id);
+                      }}
+                    >
+                      <img 
+                        src={getSafeBatchPhotoUrl(img)} 
+                        alt={img.file?.name} 
+                        className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-200" 
+                        onError={(e) => handleBatchPhotoError(e.currentTarget, img)}
+                      />
+                      <div className="absolute top-2 left-2 bg-black/75 backdrop-blur-xs text-white text-[9px] font-bold px-2 py-0.5 rounded">
+                        #{idx + 1}
+                      </div>
+                      <div className="absolute bottom-2 right-2 bg-black/75 backdrop-blur-xs text-lime-400 text-[10px] font-bold px-2 py-0.5 rounded">
+                        {facingsOnImg} {t('facingsCountShort') || 'facings'}
+                      </div>
+                    </div>
+
+                    <div className="pt-3 space-y-1">
+                      <p className="font-bold text-xs text-zinc-900 dark:text-zinc-100 truncate" title={img.file?.name}>
+                        {img.file?.name || `${t('photo') || 'Photo'} #${idx + 1}`}
+                      </p>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={storeName}>
+                        {storeName} · {dateStr}
+                      </p>
+                    </div>
+
+                    <div className="pt-3 mt-2 border-t border-zinc-150 dark:border-zinc-800 flex items-center justify-between">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                        isAnalyzing ? 'bg-sky-100 text-sky-800' : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      }`}>
+                        {isAnalyzing ? (t('processing') || 'Processing...') : (t('processed') || 'Processed ✓')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onNavigateToImage) onNavigateToImage(img.id);
+                        }}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>{t('inspect') || 'Inspect'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 7. TRIAGE / VÝNIMKY */}
+        {view === 'triage' && (
+          <AuditExceptionTriagePanel
+            images={images}
+            brandClassifications={brandClassifications}
+            onUpdateProductPrices={onUpdateProductPrices || (() => {})}
+            onRenameProduct={onRenameProduct}
+            onNavigateToImage={onNavigateToImage}
+            onOpenMissingPricesModal={onOpenMissingPrices}
+            onOpenPdfReport={() => setIsAuditExportModalOpen(true)}
+            isShelfShare={isShelfShare}
+          />
+        )}
+
+        {/* 8. TECHNICKÉ RAW DATA */}
+        {view === 'rawData' && (
+          <div className="bg-zinc-900 text-lime-400 p-6 rounded-2xl overflow-x-auto font-mono text-xs max-h-[calc(100vh-320px)] custom-scrollbar border border-zinc-800 shadow-2xl animate-fade-in">
+            <pre>{JSON.stringify(images, null, 2)}</pre>
+          </div>
         )}
       </div>
 
-       <div className="mt-8 pt-6 border-t border-gray-100 flex items-center gap-4 no-print">
+       <div className="mt-8 pt-6 border-t border-gray-100 dark:border-zinc-800 flex items-center gap-4 no-print">
         <button
           onClick={onReset}
-          className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-black py-4 px-6 rounded-2xl transition-all duration-200 flex items-center justify-center gap-3 uppercase tracking-widest text-sm"
+          className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-black py-4 px-6 rounded-2xl transition-all duration-200 flex items-center justify-center gap-3 uppercase tracking-widest text-sm cursor-pointer"
         >
           <TrashIcon className="w-5 h-5" />
           {t('endVisit')}
@@ -920,6 +1418,22 @@ export const BatchSummaryPanel: React.FC<BatchSummaryPanelProps> = ({
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
+
+      <AuditExportModal
+        isOpen={isAuditExportModalOpen}
+        onClose={() => setIsAuditExportModalOpen(false)}
+        images={images}
+        activeAnalysis={activeAnalysis}
+        brandClassifications={brandClassifications}
+        activeFilters={{
+          searchTerm: filters.searchTerm,
+          category: filters.category,
+          chain: filters.chain,
+          confidence: filters.confidence,
+          hideGhosts: filters.hideGhosts,
+          posFilter: filters.posFilter,
+        }}
+      />
     </div>
   );
 };

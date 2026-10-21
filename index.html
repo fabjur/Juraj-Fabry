@@ -1,21 +1,19 @@
 <!DOCTYPE html>
-<html lang="sk">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Salesapp Vision</title>
+    <title>2026 Salesapp Vision</title>
+    <meta name="description" content="Nahrajte fotografie regálov a umelá inteligencia identifikuje produkty a ich ceny. Aplikácia zoradí výsledky podľa ceny a miery istoty pre efektívnu cenovú analýzu." />
+    <meta property="og:title" content="2026 Salesapp Vision" />
+    <meta property="og:description" content="Nahrajte fotografie regálov a umelá inteligencia identifikuje produkty a ich ceny. Aplikácia zoradí výsledky podľa ceny a miery istoty pre efektívnu cenovú analýzu." />
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#65a30d">
+    <meta name="theme-color" content="#18181b">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       body {
-        font-family: 'Inter', sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
@@ -51,15 +49,14 @@
       }
       .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 10px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d4d4d8; }
       .scrollbar-hide::-webkit-scrollbar { display: none; }
       .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
-    <link rel="stylesheet" href="/index.css">
   </head>
-  <body class="bg-gray-100 text-gray-800">
+  <body class="bg-zinc-50 text-zinc-800 selection:bg-zinc-200">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

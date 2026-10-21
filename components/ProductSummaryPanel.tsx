@@ -70,7 +70,7 @@ export const ProductSummaryPanel: React.FC<ProductSummaryPanelProps> = ({ produc
         const products = img.analysisResult?.products;
         return (Array.isArray(products) ? products : [])
             .filter(p => {
-                if (!p || !p.name) return false;
+                if (!p || !p.name || p.isDiscarded) return false;
                 return findBestMatch(p.name.trim(), [productName]) === productName;
             })
             .map(p => ({
@@ -89,8 +89,17 @@ export const ProductSummaryPanel: React.FC<ProductSummaryPanelProps> = ({ produc
         }
         const chainEntry = chainMap.get(occurrence.chain)!;
         chainEntry.count++;
-        if (occurrence.prices && Array.isArray(occurrence.prices)) {
+        if (occurrence.prices && Array.isArray(occurrence.prices) && occurrence.prices.length > 0) {
             chainEntry.prices.push(...occurrence.prices);
+        } else {
+            const extra: PriceInfo[] = [];
+            if (typeof (occurrence as any).regularPrice === 'number' && (occurrence as any).regularPrice > 0) {
+                extra.push({ value: `${(occurrence as any).regularPrice.toFixed(2)} €`, type: 'REGULAR' });
+            }
+            if (typeof (occurrence as any).promoPrice === 'number' && (occurrence as any).promoPrice > 0) {
+                extra.push({ value: `${(occurrence as any).promoPrice.toFixed(2)} €`, type: 'PROMO' });
+            }
+            if (extra.length > 0) chainEntry.prices.push(...extra);
         }
         chainEntry.confidences.push(occurrence.confidence);
         chainEntry.imageUrls.add(occurrence.imageUrl);

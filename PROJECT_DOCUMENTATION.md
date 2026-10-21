@@ -95,7 +95,7 @@ Aby systém dosahoval maximálnu presnosť rozpoznávania aj pri zhoršených te
 Aplikácia komunikuje priamo s rozhraním **Google Gemini API** prostredníctvom oficiálneho TypeScript SDK `@google/genai`.
 
 ### 6.1 Hlavné podporované modely v aplikácii
-* **Gemini 3.6 Flash (`gemini-3.6-flash`) – Odporúčaný štandard:**
+* **Gemini 3.6 Flash (`gemini-3.8-flash`) – Odporúčaný štandard:**
   * Najlepšia rovnováha medzi bleskovou rýchlosťou spracovania (cca 1.5 – 3 sekundy na fotku), presnosťou detekcie a nízkymi prevádzkovými nákladmi ($0.75 vstup / $3.75 výstup za 1M tokenov). Určený pre 80%+ bežných auditov.
 * **Gemini 3.1 Flash-Lite / 2.5 Flash-Lite (`gemini-3.1-flash-lite`, `gemini-2.5-flash-lite`) – Ultra Low-Cost varianta:**
   * Ultra-úsporný model s najnižšou cenou ($0.10 vstup / $0.40 výstup za 1M tokenov). Vhodný pre masové denné audity dostupnosti (OSA) vo veľkých sieťach predajní.

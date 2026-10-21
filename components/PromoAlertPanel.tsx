@@ -8,12 +8,12 @@ import { exportPromoAlertToXLS, exportToPDF } from '../utils/export';
 import { 
     Tag, 
     Percent, 
-    TrendingDown, 
-    Store, 
+     
+     
     HelpCircle, 
     ChevronDown, 
     ChevronUp, 
-    AlertTriangle, 
+     
     Check, 
     Search,
     Flame,
@@ -28,7 +28,7 @@ interface PromoAlertPanelProps {
     onOpenBrandDefinition?: () => void;
 }
 
-// Helper to extract a clean float number from price strings (e.g. "1.99 EUR", "1,49 €")
+// Helper to extract a clean float number from price strings (e.g. "1.99 EUR", "1,49 ")
 const parseNumericPrice = (pStr?: string): number | null => {
     if (!pStr) return null;
     const cleanStr = pStr.replace(/[^0-9,.]/g, '').replace(',', '.');
@@ -46,140 +46,7 @@ const formatPriceWithCurrency = (pStr?: string): string => {
     return `${trimmed} €`;
 };
 
-const AlertCard: React.FC<{ alert: PromoAlertItem }> = ({ alert }) => {
-    const { t } = useTranslation();
-    let regularPrice = alert.product.prices?.find(p => p.type === 'REGULAR')?.value;
-    let promoPrice = alert.product.prices?.find(p => p.type === 'PROMO')?.value;
 
-    let numReg = parseNumericPrice(regularPrice);
-    let numPromo = parseNumericPrice(promoPrice);
-
-    // Dynamic verification & automatic swap when action price is higher than regular
-    if (numReg !== null && numPromo !== null && numPromo > numReg) {
-        const tempPrice = regularPrice;
-        regularPrice = promoPrice;
-        promoPrice = tempPrice;
-
-        const tempNum = numReg;
-        numReg = numPromo;
-        numPromo = tempNum;
-    }
-
-    let savingsPercent = 0;
-    let savingsAbsolute = 0;
-    if (numReg && numPromo && numReg > numPromo) {
-        savingsAbsolute = numReg - numPromo;
-        savingsPercent = Math.round((savingsAbsolute / numReg) * 100);
-    }
-
-    const hasSavings = savingsPercent > 0;
-
-    // Custom background and styling classes based on Promo Alert Type
-    let cardBorderTheme = '';
-    let categoryBadgeTheme = '';
-    let discountRibbonTheme = '';
-    let priceLabelTheme = '';
-    let typeLabelSlovak = '';
-
-    switch (alert.type) {
-        case 'competitor_promo':
-            cardBorderTheme = 'border-blue-200 hover:border-blue-400 bg-gradient-to-br from-white to-blue-50/20';
-            categoryBadgeTheme = 'bg-blue-50 text-blue-800 border-blue-100';
-            discountRibbonTheme = 'bg-blue-600 text-white';
-            priceLabelTheme = 'text-blue-900';
-            typeLabelSlovak = t('competitorPromoTag') || 'Akcia konkurencie';
-            break;
-        case 'our_promo':
-            cardBorderTheme = 'border-emerald-200 hover:border-emerald-400 bg-gradient-to-br from-white to-emerald-50/10';
-            categoryBadgeTheme = 'bg-emerald-50 text-emerald-800 border-emerald-100';
-            discountRibbonTheme = 'bg-emerald-600 text-white';
-            priceLabelTheme = 'text-emerald-900';
-            typeLabelSlovak = t('ourActivePromoTag') || 'Naša akcia';
-            break;
-        case 'missing_promo':
-            cardBorderTheme = 'border-amber-200 hover:border-amber-400 bg-gradient-to-br from-white to-amber-50/30';
-            categoryBadgeTheme = 'bg-amber-50 text-amber-800 border-amber-100';
-            discountRibbonTheme = 'bg-amber-600 text-white';
-            priceLabelTheme = 'text-amber-900';
-            typeLabelSlovak = t('missingPromoTagTitle') || 'Chýbajúca akčná cenovka';
-            break;
-    }
-
-    return (
-        <div className={`p-5 bg-white rounded-3xl border transition-all duration-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 relative group overflow-hidden text-left ${cardBorderTheme}`}>
-            {/* Top row: Brand & Store metadata */}
-            <div className="flex justify-between items-start mb-3.5 gap-2">
-                <div className="min-w-0">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border shadow-2xs ${categoryBadgeTheme}`}>
-                        {typeLabelSlovak}
-                    </span>
-                    <p className="font-extrabold text-[10px] text-gray-400 uppercase tracking-widest mt-1.5 flex items-center gap-1">
-                        <Store className="w-3 h-3 text-gray-400 shrink-0" />
-                        <span className="truncate">{alert.store}</span>
-                    </p>
-                </div>
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 shrink-0">
-                    {alert.product.brand || t('otherBrand') || 'Ostatné'}
-                </span>
-            </div>
-
-            {/* Product description */}
-            <h4 className="font-black text-gray-900 text-base leading-snug group-hover:text-lime-700 transition-colors tracking-tight line-clamp-2" title={alert.product.name}>
-                {alert.product.name}
-            </h4>
-
-            {/* Pricing Section - Realistic Price Tag Mockup */}
-            <div className="mt-4 pt-4 border-t border-gray-100/60">
-                {alert.type === 'missing_promo' ? (
-                    /* WARNING BOX FOR MISSING PROMO */
-                    <div className="bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200/50 flex items-start gap-2.5">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
-                        <div>
-                            <p className="text-xs font-extrabold text-amber-900">{t('unidentifiedPromoPrice') || 'Vystavenie bez akciovej ceny'}</p>
-                            <p className="text-[11px] text-amber-700/90 font-bold mt-0.5">
-                                {t('missingPromoWarning') || 'Evidovaná iba bežná cena:'} <strong className="text-amber-900 font-extrabold">{formatPriceWithCurrency(regularPrice)}</strong>
-                            </p>
-                        </div>
-                    </div>
-                ) : (
-                    /* SIDE-BY-SIDE PHYSICAL PRICE TAG VIEW FOR ACTIVE PROMOTIONS */
-                    <div className="bg-yellow-50/40 p-4 rounded-2xl border border-dashed border-amber-200/80 flex items-center justify-between relative shadow-xs overflow-hidden">
-                        {/* Interactive savings ribbon */}
-                        {hasSavings && (
-                            <span className={`absolute top-0 right-0 rounded-bl-xl px-2.5 py-1 text-[10px] font-black tracking-wider uppercase flex items-center gap-0.5 shadow-sm ${discountRibbonTheme}`}>
-                                <TrendingDown className="w-3 h-3 text-white" />
-                                <span>-{savingsPercent}%</span>
-                            </span>
-                        )}
-
-                        <div className="space-y-1">
-                            <span className="text-[9px] uppercase font-black text-amber-600 tracking-wider block">{t('promoPriceLabel') || 'Akciová cena'}</span>
-                            <span className={`text-2xl font-black tracking-tight ${priceLabelTheme}`}>
-                                {formatPriceWithCurrency(promoPrice)}
-                            </span>
-                        </div>
-
-                        {/* Slashed-through original standard price */}
-                        <div className="text-right border-l border-amber-200/50 pl-4 space-y-1">
-                            <span className="text-[9px] uppercase font-black text-gray-400 tracking-wider block">{t('regularPriceLabel') || 'Bežná cena'}</span>
-                            <span className="text-sm font-extrabold text-gray-400 line-through tracking-tight">
-                                {formatPriceWithCurrency(regularPrice)}
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                {/* Micro savings details */}
-                {alert.type !== 'missing_promo' && hasSavings && (
-                    <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-700 font-black bg-emerald-50 px-2.5 py-1 rounded-lg w-fit border border-emerald-100 shadow-2xs uppercase tracking-wide">
-                        <Flame className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-                        <span>{t('priceDiffLabel', { diff: savingsAbsolute.toFixed(2) }) || `Úspora ${savingsAbsolute.toFixed(2)} €`}</span>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
 
 export const PromoAlertPanel: React.FC<PromoAlertPanelProps> = ({ images, brandClassifications, onOpenBrandDefinition }) => {
     const { t } = useTranslation();
@@ -202,8 +69,15 @@ export const PromoAlertPanel: React.FC<PromoAlertPanelProps> = ({ images, brandC
             if (!image.analysisResult?.products || !Array.isArray(image.analysisResult.products)) return;
             
             image.analysisResult.products.forEach(product => {
+                if (!product || product.isDiscarded || product.type === 'pos_material' || product.isGhost) return;
                 const brand = product.brand || '';
-                const isPromo = product.prices?.some(p => p.type === 'PROMO');
+                const isPromo = Boolean(
+                  (typeof product.promoPrice === 'number' && product.promoPrice > 0) ||
+                  product.prices?.some(p => {
+                    const tUpper = (p.type || '').toUpperCase();
+                    return tUpper.includes('PROMO') || tUpper.includes('AKCIA') || tUpper.includes('ACTION');
+                  })
+                );
 
                 if (hasClassifications) {
                     if (brandClassifications.competitorBrands.includes(brand) && isPromo) {
@@ -264,8 +138,12 @@ export const PromoAlertPanel: React.FC<PromoAlertPanelProps> = ({ images, brandC
 
         alerts.forEach(a => {
             if (a.type !== 'missing_promo') {
-                const reg = parseNumericPrice(a.product.prices?.find(p => p.type === 'REGULAR')?.value);
-                const pro = parseNumericPrice(a.product.prices?.find(p => p.type === 'PROMO')?.value);
+                const reg = typeof a.product.regularPrice === 'number' && a.product.regularPrice > 0 
+                  ? a.product.regularPrice 
+                  : parseNumericPrice(a.product.prices?.find(p => p.type === 'REGULAR')?.value);
+                const pro = typeof a.product.promoPrice === 'number' && a.product.promoPrice > 0 
+                  ? a.product.promoPrice 
+                  : parseNumericPrice(a.product.prices?.find(p => p.type === 'PROMO')?.value);
                 if (reg && pro && reg > pro) {
                     const diff = reg - pro;
                     totalPromoDiscountPercentSum += (diff / reg) * 100;
@@ -288,9 +166,6 @@ export const PromoAlertPanel: React.FC<PromoAlertPanelProps> = ({ images, brandC
         };
     }, [alerts]);
 
-    const competitorAlertsFiltered = filteredAlerts.filter(a => a.type === 'competitor_promo');
-    const ourActiveAlertsFiltered = filteredAlerts.filter(a => a.type === 'our_promo');
-    const missingPromoAlertsFiltered = filteredAlerts.filter(a => a.type === 'missing_promo');
 
     return (
         <div ref={panelRef} className="space-y-8 printable-content animate-fade-in text-left">
@@ -460,16 +335,16 @@ export const PromoAlertPanel: React.FC<PromoAlertPanelProps> = ({ images, brandC
             {/* KPI STATS BAR */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-left">
                 {/* 1. Average discount percentage */}
-                <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-3xl text-white shadow-md shadow-amber-200/50 flex flex-col justify-between">
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs flex flex-col justify-between">
                     <div className="flex justify-between items-start">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-100">{t('avgDiscount') || 'Priemerné zníženie'}</span>
-                        <div className="p-1.5 bg-white/25 rounded-lg">
-                            <Percent className="w-4 h-4 text-white" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-600">{t('avgDiscount') || 'Priemerné zníženie'}</span>
+                        <div className="p-1.5 bg-amber-50 rounded-lg border border-amber-100">
+                            <Percent className="w-4 h-4 text-amber-600" />
                         </div>
                     </div>
                     <div className="mt-4">
-                        <span className="text-4xl font-black">-{stats.avgDiscount}%</span>
-                        <p className="text-[10px] text-amber-100/90 font-bold mt-1 shadow-sm uppercase tracking-wide">
+                        <span className="text-4xl font-black text-amber-600">-{stats.avgDiscount}%</span>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1 shadow-sm uppercase tracking-wide">
                             {t('priceReductionDesc') || 'Priemerná zľava pri akčných cenách'}
                         </p>
                     </div>
@@ -598,104 +473,104 @@ export const PromoAlertPanel: React.FC<PromoAlertPanelProps> = ({ images, brandC
 
             {/* MAIN DATA COLUMNS / RESULTS PREVIEW */}
             {filteredAlerts.length > 0 ? (
-                activeFilterTab === 'all' ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Competitor promotions column */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between px-3">
-                                <span className="text-xs font-black uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                                    {t('competitorPromosCol') || 'Akcie konkurencie'}
-                                </span>
-                                <span className="text-xs text-gray-400 font-bold">
-                                    {t('itemsCountCol', { count: competitorAlertsFiltered.length }) || `${competitorAlertsFiltered.length} položiek`}
-                                </span>
-                            </div>
-                            <div className="space-y-4 max-h-[750px] overflow-y-auto pr-1 custom-scrollbar">
-                                {competitorAlertsFiltered.length > 0 ? (
-                                    competitorAlertsFiltered.map((alert, i) => (
-                                        <AlertCard key={`comp-${alert.product.id}-${i}`} alert={alert} />
-                                    ))
-                                ) : (
-                                    <div className="text-center py-10 bg-gray-50/55 rounded-2xl border border-dashed border-gray-200 text-xs text-gray-400 font-bold">
-                                        {t('noRecordedCompetitorPromos') || 'Neboli zistené žiadne akcie konkurencie.'}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
 
-                        {/* Our active promotions column */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between px-3">
-                                <span className="text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                                    {t('ourActivePromosCol') || 'Naše aktívne akcie'}
-                                </span>
-                                <span className="text-xs text-gray-400 font-bold">
-                                    {t('itemsCountCol', { count: ourActiveAlertsFiltered.length }) || `${ourActiveAlertsFiltered.length} položiek`}
-                                </span>
-                            </div>
-                            <div className="space-y-4 max-h-[750px] overflow-y-auto pr-1 custom-scrollbar">
-                                {ourActiveAlertsFiltered.length > 0 ? (
-                                    ourActiveAlertsFiltered.map((alert, i) => (
-                                        <AlertCard key={`our-${alert.product.id}-${i}`} alert={alert} />
-                                    ))
-                                ) : (
-                                    <div className="text-center py-10 bg-gray-50/55 rounded-2xl border border-dashed border-gray-200 text-xs text-gray-400 font-bold">
-                                        {t('noRecordedOurPromos') || 'Neboli zistené žiadne naše akcie.'}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden w-full">
+                    <div className="overflow-x-auto max-h-[750px] custom-scrollbar">
+                        <table className="w-full text-left border-collapse text-[11px] font-sans">
+                            <thead className="sticky top-0 z-10">
+                                <tr className="bg-gray-50/95 backdrop-blur-xs text-[9px] font-black uppercase text-gray-500 tracking-wider border-b border-gray-200">
+                                    <th className="px-4 py-3 whitespace-nowrap">{t('storeCol') || 'Predajňa'}</th>
+                                    <th className="px-4 py-3 whitespace-nowrap">{t('brandCol') || 'Značka'}</th>
+                                    <th className="px-4 py-3 whitespace-nowrap">{t('productCol') || 'Produkt'}</th>
+                                    <th className="px-4 py-3 whitespace-nowrap text-center">{t('typeCol') || 'Typ'}</th>
+                                    <th className="px-4 py-3 whitespace-nowrap text-right">{t('regularPriceCol') || 'Bežná cena'}</th>
+                                    <th className="px-4 py-3 whitespace-nowrap text-right">{t('promoPriceCol') || 'Akciová cena'}</th>
+                                    <th className="px-4 py-3 whitespace-nowrap text-right">{t('savingsCol') || 'Úspora'}</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {filteredAlerts.map((alert, i) => {
+                                    let regularPrice = alert.product.prices?.find(p => p.type === 'REGULAR')?.value;
+                                    let promoPrice = alert.product.prices?.find(p => p.type === 'PROMO')?.value;
+                                    let numReg = parseNumericPrice(regularPrice);
+                                    let numPromo = parseNumericPrice(promoPrice);
 
-                        {/* Missing promotions column */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between px-3">
-                                <span className="text-xs font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-                                    {t('missingSupportCol') || 'Chýbajúce promo cenovky'}
-                                </span>
-                                <span className="text-xs text-gray-400 font-bold">
-                                    {t('itemsCountCol', { count: missingPromoAlertsFiltered.length }) || `${missingPromoAlertsFiltered.length} položiek`}
-                                </span>
-                            </div>
-                            <div className="space-y-4 max-h-[750px] overflow-y-auto pr-1 custom-scrollbar flex-1">
-                                {missingPromoAlertsFiltered.length > 0 ? (
-                                    missingPromoAlertsFiltered.map((alert, i) => (
-                                        <AlertCard key={`miss-${alert.product.id}-${i}`} alert={alert} />
-                                    ))
-                                ) : (
-                                    <div className="text-center py-10 bg-gray-50/55 rounded-2xl border border-dashed border-gray-200 text-xs text-gray-400 font-bold">
-                                        {t('noMissingPromoSupport') || 'Žiadne chýbajúce akčné cenovky.'}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                                    if (numReg !== null && numPromo !== null && numPromo > numReg) {
+                                        const tempPrice = regularPrice; regularPrice = promoPrice; promoPrice = tempPrice;
+                                        const tempNum = numReg; numReg = numPromo; numPromo = tempNum;
+                                    }
+
+                                    let savingsPercent = 0;
+                                    if (numReg && numPromo && numReg > numPromo) {
+                                        savingsPercent = Math.round(((numReg - numPromo) / numReg) * 100);
+                                    }
+
+                                    return (
+                                        <tr key={`alert-${alert.product.id}-${i}`} className="hover:bg-slate-50/80 transition-colors text-slate-700">
+                                            {/* Store */}
+                                            <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">
+                                                {alert.store}
+                                            </td>
+                                            {/* Brand */}
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                                                    {alert.product.brand || t('otherBrand') || 'Ostatné'}
+                                                </span>
+                                            </td>
+                                            {/* Product */}
+                                            <td className="px-4 py-3 font-bold min-w-[200px]">
+                                                {alert.product.name}
+                                            </td>
+                                            {/* Type */}
+                                            <td className="px-4 py-3 text-center whitespace-nowrap">
+                                                {alert.type === 'our_promo' && (
+                                                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                                        {t('ourActivePromoTag') || 'Naša akcia'}
+                                                    </span>
+                                                )}
+                                                {alert.type === 'competitor_promo' && (
+                                                    <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                                        {t('competitorPromoTag') || 'Konkurencia'}
+                                                    </span>
+                                                )}
+                                                {alert.type === 'missing_promo' && (
+                                                    <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                                        {t('missingPromoTagTitle') || 'Chýba'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            {/* Regular Price */}
+                                            <td className="px-4 py-3 text-right font-mono font-medium whitespace-nowrap text-slate-500">
+                                                <span className={alert.type !== 'missing_promo' && promoPrice ? 'line-through' : ''}>
+                                                    {formatPriceWithCurrency(regularPrice)}
+                                                </span>
+                                            </td>
+                                            {/* Promo Price */}
+                                            <td className="px-4 py-3 text-right font-mono font-bold whitespace-nowrap">
+                                                {alert.type === 'missing_promo' ? (
+                                                    <span className="text-amber-600 text-[10px] italic">{t('notAvailable') || 'N/A'}</span>
+                                                ) : (
+                                                    <span className="text-slate-900">{formatPriceWithCurrency(promoPrice)}</span>
+                                                )}
+                                            </td>
+                                            {/* Savings */}
+                                            <td className="px-4 py-3 text-right whitespace-nowrap">
+                                                {savingsPercent > 0 && alert.type !== 'missing_promo' ? (
+                                                    <span className="text-emerald-600 font-black bg-emerald-50 px-2 py-0.5 rounded text-[10px]">
+                                                        -{savingsPercent}%
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-300">-</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
-                ) : (
-                    /* FLUID BENTO GRID FOR INDIVIDUAL FILTER TABS */
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between px-2">
-                            <span className={`text-xs font-black uppercase tracking-wider px-3.5 py-1.5 rounded-xl border shadow-2xs ${
-                                activeFilterTab === 'our' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' :
-                                activeFilterTab === 'competitor' ? 'text-blue-700 bg-blue-50 border-blue-100' :
-                                'text-amber-700 bg-amber-50 border-amber-100'
-                            }`}>
-                                {activeFilterTab === 'our' ? (t('ourActivePromosCol') || 'Naše akcie') :
-                                 activeFilterTab === 'competitor' ? (t('competitorPromosCol') || 'Akcie konkurencie') :
-                                 (t('missingSupportCol') || 'Chýbajúce promo cenovky')}
-                            </span>
-                            <span className="text-xs text-gray-400 font-extrabold bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-150">
-                                {t('totalItemsDisplayed', { count: filteredAlerts.length }) || `Zobrazených: ${filteredAlerts.length}`}
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {filteredAlerts.map((alert, i) => (
-                                <AlertCard key={`tab-${alert.product.id}-${i}`} alert={alert} />
-                            ))}
-                        </div>
-                    </div>
-                )
+                </div>
+
             ) : (
                 <div className="text-center py-20 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200 flex flex-col items-center justify-center animate-fade-in mx-4">
                     <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm border border-gray-100">

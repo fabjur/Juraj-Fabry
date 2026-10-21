@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+
+const EMPTY_ARRAY: any[] = [];
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import type { QualityCheck, QualityCheckSubmission } from '../types';
@@ -87,8 +89,8 @@ const createSamplePlanogramSvg = (): string => {
 
 export const QualityCheckPanel: React.FC = () => {
   const { language, t } = useTranslation();
-  const templates = useLiveQuery(() => db.quality_checks.orderBy('createdAt').reverse().toArray()) || [];
-  const stores = useLiveQuery(() => db.stores.toArray()) || [];
+  const templates = useLiveQuery(() => db.quality_checks.orderBy('createdAt').reverse().toArray()) ?? EMPTY_ARRAY;
+  const stores = useLiveQuery(() => db.stores.toArray()) ?? EMPTY_ARRAY;
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
@@ -129,7 +131,7 @@ export const QualityCheckPanel: React.FC = () => {
   const [comparisonModalSubmission, setComparisonModalSubmission] = useState<QualityCheckSubmission | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const activeTemplate = templates.find(t => t.id === selectedTemplateId);
+  const activeTemplate = useMemo(() => templates.find(t => t.id === selectedTemplateId), [templates, selectedTemplateId]);
 
   // Helper: File to base64
   const fileToBase64 = (file: File): Promise<string> => {
@@ -319,7 +321,7 @@ export const QualityCheckPanel: React.FC = () => {
         activeTemplate.referenceImages,
         activeTemplate.description,
         storeImage,
-        'gemini-3.6-flash',
+        'gemini-3.1-flash-lite',
         language
       );
 
@@ -389,7 +391,7 @@ export const QualityCheckPanel: React.FC = () => {
         activeTemplate.referenceImages,
         activeTemplate.description,
         submission.imageUrl,
-        'gemini-3.6-flash',
+        'gemini-3.1-flash-lite',
         language
       );
 
@@ -449,7 +451,7 @@ export const QualityCheckPanel: React.FC = () => {
             activeTemplate.referenceImages,
             activeTemplate.description,
             sub.imageUrl,
-            'gemini-3.6-flash',
+            'gemini-3.1-flash-lite',
             language
           );
 
@@ -496,33 +498,36 @@ export const QualityCheckPanel: React.FC = () => {
   };
 
   // Filtered store list
-  const filteredStoresList = stores.filter(st => {
-    const term = searchStoreTerm.toLowerCase();
-    return st.name.toLowerCase().includes(term) || (st.city && st.city.toLowerCase().includes(term));
-  });
+  const filteredStoresList = useMemo(() => {
+    return stores.filter(st => {
+      const term = searchStoreTerm.toLowerCase();
+      return st.name.toLowerCase().includes(term) || (st.city && st.city.toLowerCase().includes(term));
+    });
+  }, [stores, searchStoreTerm]);
 
   // Filtered submissions
-  const filteredSubmissions = activeTemplate 
-    ? activeTemplate.submissions.filter(sub => {
+  const filteredSubmissions = useMemo(() => {
+    if (!activeTemplate) return [];
+    return activeTemplate.submissions.filter(sub => {
         if (scoreFilter === 'compliant') return (sub.complianceScore ?? 0) >= 80 && sub.status === 'success';
         if (scoreFilter === 'noncompliant') return (sub.complianceScore ?? 0) < 80 && sub.status === 'success';
         return true;
-      })
-    : [];
+    });
+  }, [activeTemplate, scoreFilter]);
 
   return (
     <div className="space-y-8 animate-fade-in text-left">
       
       {/* Header section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-5">
         <div>
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+          <h2 className="text-2xl font-black text-gray-900 dark:text-zinc-100 tracking-tight flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-lime-100 to-emerald-100 rounded-2xl shadow-xs border border-lime-200/50">
               <FileCheck2 className="w-6 h-6 text-lime-700" />
             </div>
             {t('qc_title')}
           </h2>
-          <p className="text-xs text-gray-500 font-bold mt-1 max-w-2xl">
+          <p className="text-xs text-gray-500 dark:text-zinc-400 font-bold mt-1 max-w-2xl">
             {t('qc_subtitle')}
           </p>
         </div>
@@ -549,7 +554,7 @@ export const QualityCheckPanel: React.FC = () => {
         {selectedTemplateId && (
           <button
             onClick={() => setSelectedTemplateId(null)}
-            className="px-4 py-2.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all self-start"
+            className="px-4 py-2.5 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 hover:bg-gray-200 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all self-start"
           >
             <ArrowLeft className="w-4 h-4" />
             {t('qc_backToPlanograms')}
@@ -591,39 +596,39 @@ export const QualityCheckPanel: React.FC = () => {
         {isGuideOpen && (
           <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-5 pt-5 border-t border-lime-200/50">
             {/* Step 1 */}
-            <div className="bg-white p-5 rounded-2xl border border-lime-100 shadow-xs flex flex-col justify-between">
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-lime-100 shadow-xs flex flex-col justify-between">
               <div>
                 <span className="text-[10px] uppercase tracking-widest bg-lime-100 text-lime-800 px-2.5 py-1 rounded-lg font-black">
                   {t('qc_partALabel')}
                 </span>
-                <h4 className="font-black text-xs text-gray-900 mt-3 mb-1">{t('qc_partA_title')}</h4>
-                <p className="text-[11px] text-gray-600 leading-relaxed font-semibold">
+                <h4 className="font-black text-xs text-gray-900 dark:text-zinc-100 mt-3 mb-1">{t('qc_partA_title')}</h4>
+                <p className="text-[11px] text-gray-600 dark:text-zinc-400 leading-relaxed font-semibold">
                   {t('qc_partA_desc')}
                 </p>
               </div>
             </div>
 
             {/* Step 2 */}
-            <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-xs flex flex-col justify-between">
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-blue-100 shadow-xs flex flex-col justify-between">
               <div>
                 <span className="text-[10px] uppercase tracking-widest bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg font-black">
                   {t('qc_partBLabel')}
                 </span>
-                <h4 className="font-black text-xs text-gray-900 mt-3 mb-1">{t('qc_partB_title')}</h4>
-                <p className="text-[11px] text-gray-600 leading-relaxed font-semibold">
+                <h4 className="font-black text-xs text-gray-900 dark:text-zinc-100 mt-3 mb-1">{t('qc_partB_title')}</h4>
+                <p className="text-[11px] text-gray-600 dark:text-zinc-400 leading-relaxed font-semibold">
                   {t('qc_partB_desc')}
                 </p>
               </div>
             </div>
 
             {/* Step 3 */}
-            <div className="bg-white p-5 rounded-2xl border border-purple-100 shadow-xs flex flex-col justify-between">
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-purple-100 shadow-xs flex flex-col justify-between">
               <div>
                 <span className="text-[10px] uppercase tracking-widest bg-purple-100 text-purple-800 px-2.5 py-1 rounded-lg font-black">
                   {t('qc_partCLabel')}
                 </span>
-                <h4 className="font-black text-xs text-gray-900 mt-3 mb-1">{t('qc_partC_title')}</h4>
-                <p className="text-[11px] text-gray-600 leading-relaxed font-semibold">
+                <h4 className="font-black text-xs text-gray-900 dark:text-zinc-100 mt-3 mb-1">{t('qc_partC_title')}</h4>
+                <p className="text-[11px] text-gray-600 dark:text-zinc-400 leading-relaxed font-semibold">
                   {t('qc_partC_desc')}
                 </p>
               </div>
@@ -636,7 +641,7 @@ export const QualityCheckPanel: React.FC = () => {
       {!selectedTemplateId && !isCreatingTemplate && (
         <div className="space-y-4">
           <div className="flex justify-between items-center px-1">
-            <h3 className="font-black text-gray-900 text-sm uppercase tracking-wider flex items-center gap-2">
+            <h3 className="font-black text-gray-900 dark:text-zinc-100 text-sm uppercase tracking-wider flex items-center gap-2">
               <Layers className="w-4 h-4 text-lime-600" />
               {t('qc_planogramsList', { count: templates.length })}
             </h3>
@@ -644,12 +649,12 @@ export const QualityCheckPanel: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {templates.length === 0 ? (
-              <div className="col-span-full bg-white rounded-3xl p-12 border border-gray-100 flex flex-col items-center text-center">
+              <div className="col-span-full bg-white dark:bg-zinc-900 rounded-3xl p-12 border border-gray-100 dark:border-zinc-800 flex flex-col items-center text-center">
                 <div className="p-4 bg-lime-50 rounded-2xl text-lime-600 mb-4 animate-bounce">
                   <ClipboardList className="w-8 h-8" />
                 </div>
-                <h3 className="font-bold text-gray-900 text-sm">{t('qc_noPlanograms')}</h3>
-                <p className="text-xs text-gray-500 mt-2 max-w-sm">
+                <h3 className="font-bold text-gray-900 dark:text-zinc-100 text-sm">{t('qc_noPlanograms')}</h3>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 mt-2 max-w-sm">
                   {t('qc_noPlanogramsDesc')}
                 </p>
                 <button
@@ -670,12 +675,12 @@ export const QualityCheckPanel: React.FC = () => {
                   <div
                     key={tpl.id}
                     onClick={() => setSelectedTemplateId(tpl.id)}
-                    className="bg-white rounded-3xl border border-gray-150 hover:border-lime-400 shadow-xs p-5 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group flex flex-col justify-between"
+                    className="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 hover:border-lime-400 shadow-xs p-5 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group flex flex-col justify-between"
                   >
                     <div>
                       {/* Thumbnail of first ref image */}
                       {tpl.referenceImages?.[0] && (
-                        <div className="mb-4 aspect-video w-full rounded-2xl overflow-hidden bg-gray-100 relative">
+                        <div className="mb-4 aspect-video w-full rounded-2xl overflow-hidden bg-gray-100 dark:bg-zinc-800 relative">
                           <img 
                             src={tpl.referenceImages[0]} 
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -691,24 +696,24 @@ export const QualityCheckPanel: React.FC = () => {
                       )}
 
                       <div className="flex justify-between items-start gap-2">
-                        <h4 className="font-black text-gray-900 text-base group-hover:text-lime-700 transition-colors line-clamp-1">{tpl.name}</h4>
+                        <h4 className="font-black text-gray-900 dark:text-zinc-100 text-base group-hover:text-lime-700 transition-colors line-clamp-1">{tpl.name}</h4>
                         <button
                           onClick={(e) => handleDeleteTemplate(tpl.id, e)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
+                          className="p-1.5 text-gray-400 dark:text-zinc-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
                           title={t('qc_deletePlanogram')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
 
-                      <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 h-9 overflow-hidden font-medium">
+                      <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1.5 line-clamp-2 h-9 overflow-hidden font-medium">
                         {tpl.description || t('qc_noExtraDesc')}
                       </p>
                     </div>
 
-                    <div className="border-t border-gray-100 pt-3 mt-4 flex items-center justify-between text-xs text-gray-500">
+                    <div className="border-t border-gray-100 dark:border-zinc-800 pt-3 mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-zinc-400">
                       <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-gray-800 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">{t('qc_auditsCount', { count: auditCount })}</span>
+                        <span className="font-extrabold text-gray-800 dark:text-zinc-200 bg-gray-50 dark:bg-zinc-800/60 px-2.5 py-1 rounded-lg border border-gray-100 dark:border-zinc-800">{t('qc_auditsCount', { count: auditCount })}</span>
                         {auditCount > 0 && (
                           <div className="flex items-center gap-1.5">
                             <span className="h-2 w-2 rounded-full bg-emerald-500" title="Vyhovujúce"></span>
@@ -718,7 +723,7 @@ export const QualityCheckPanel: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight className="w-4 h-4 text-gray-400 dark:text-zinc-500 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
                 );
@@ -730,21 +735,21 @@ export const QualityCheckPanel: React.FC = () => {
 
       {/* --- FORM FOR CREATING A NEW PLANOGRAM REFERENCE --- */}
       {isCreatingTemplate && (
-        <div className="bg-white rounded-3xl border border-gray-150 shadow-md overflow-hidden p-6 max-w-4xl mx-auto space-y-6">
-          <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-md overflow-hidden p-6 max-w-4xl mx-auto space-y-6">
+          <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-zinc-800">
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-lime-700 bg-lime-50 border border-lime-100 px-2.5 py-0.5 rounded-md">
                 {t('qc_partACreateHeader')}
               </span>
-              <h3 className="text-base font-black text-gray-900 mt-1 flex items-center gap-2">
+              <h3 className="text-base font-black text-gray-900 dark:text-zinc-100 mt-1 flex items-center gap-2">
                 <Layers className="w-5 h-5 text-lime-600" />
                 {t('qc_createPlanogramTitle')}
               </h3>
-              <p className="text-xs text-gray-500 mt-0.5 font-medium">{t('qc_createPlanogramSubtitle')}</p>
+              <p className="text-xs text-gray-500 dark:text-zinc-400 mt-0.5 font-medium">{t('qc_createPlanogramSubtitle')}</p>
             </div>
             <button
               onClick={() => setIsCreatingTemplate(false)}
-              className="text-gray-400 hover:text-gray-800 text-xs font-bold bg-gray-100 px-3 py-1.5 rounded-xl transition-all"
+              className="text-gray-400 dark:text-zinc-500 hover:text-gray-800 text-xs font-bold bg-gray-100 dark:bg-zinc-800 px-3 py-1.5 rounded-xl transition-all"
             >
               {t('qc_cancel')}
             </button>
@@ -754,33 +759,33 @@ export const QualityCheckPanel: React.FC = () => {
             {/* Left Col inputs */}
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black uppercase text-gray-500 tracking-wider mb-1.5">{t('qc_planogramNameLabel')}</label>
+                <label className="block text-[10px] font-black uppercase text-gray-500 dark:text-zinc-400 tracking-wider mb-1.5">{t('qc_planogramNameLabel')}</label>
                 <input
                   type="text"
                   placeholder={t('qc_planogramNamePlaceholder')}
                   value={newTemplateName}
                   onChange={e => setNewTemplateName(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl text-xs p-3 font-bold text-gray-800 focus:ring-2 focus:ring-lime-500 focus:bg-white transition-all outline-none"
+                  className="w-full bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-800 rounded-xl text-xs p-3 font-bold text-gray-800 dark:text-zinc-200 focus:ring-2 focus:ring-lime-500 focus:bg-white transition-all outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-gray-500 tracking-wider mb-1.5">{t('qc_manualLabel')}</label>
+                <label className="block text-[10px] font-black uppercase text-gray-500 dark:text-zinc-400 tracking-wider mb-1.5">{t('qc_manualLabel')}</label>
                 <textarea
                   rows={6}
                   placeholder={t('qc_manualPlaceholder')}
                   value={newTemplateDesc}
                   onChange={e => setNewTemplateDesc(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl text-xs p-3 font-medium text-gray-800 focus:ring-2 focus:ring-lime-500 focus:bg-white transition-all outline-none resize-none leading-relaxed"
+                  className="w-full bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-800 rounded-xl text-xs p-3 font-medium text-gray-800 dark:text-zinc-200 focus:ring-2 focus:ring-lime-500 focus:bg-white transition-all outline-none resize-none leading-relaxed"
                 />
               </div>
             </div>
 
             {/* Right Col Image uploads */}
             <div className="space-y-4">
-              <label className="block text-[10px] font-black uppercase text-gray-500 tracking-wider">{t('qc_refPhotosLabel')}</label>
+              <label className="block text-[10px] font-black uppercase text-gray-500 dark:text-zinc-400 tracking-wider">{t('qc_refPhotosLabel')}</label>
               
-              <div className="border-2 border-dashed border-gray-250 rounded-2xl p-6 hover:border-lime-500 hover:bg-lime-50/20 transition-all flex flex-col items-center justify-center text-center cursor-pointer relative bg-gray-50/50">
+              <div className="border-2 border-dashed border-gray-250 rounded-2xl p-6 hover:border-lime-500 hover:bg-lime-50/20 transition-all flex flex-col items-center justify-center text-center cursor-pointer relative bg-gray-50/50 dark:bg-zinc-900/60">
                 <input
                   type="file"
                   multiple
@@ -789,15 +794,15 @@ export const QualityCheckPanel: React.FC = () => {
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
                 <Upload className="w-8 h-8 text-lime-600 mb-2" />
-                <span className="text-xs font-black text-gray-800">{t('qc_selectRefPhotos')}</span>
-                <span className="text-[10px] text-gray-400 font-bold mt-1">{t('qc_uploadRefHint')}</span>
+                <span className="text-xs font-black text-gray-800 dark:text-zinc-200">{t('qc_selectRefPhotos')}</span>
+                <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold mt-1">{t('qc_uploadRefHint')}</span>
               </div>
 
               {/* Uploaded references list */}
               {refImages.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   {refImages.map((img, idx) => (
-                    <div key={idx} className="aspect-square rounded-xl overflow-hidden bg-gray-100 relative group border border-gray-200">
+                    <div key={idx} className="aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-zinc-800 relative group border border-gray-200 dark:border-zinc-800">
                       <img src={img} className="w-full h-full object-cover" />
                       <button
                         onClick={() => setRefImages(prev => prev.filter((_, i) => i !== idx))}
@@ -820,10 +825,10 @@ export const QualityCheckPanel: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-gray-100 flex justify-end gap-3">
+          <div className="pt-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end gap-3">
             <button
               onClick={() => setIsCreatingTemplate(false)}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all"
+              className="px-4 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 text-gray-700 dark:text-zinc-300 rounded-xl text-xs font-bold transition-all"
             >
               {t('qc_cancel')}
             </button>
@@ -859,41 +864,41 @@ export const QualityCheckPanel: React.FC = () => {
                     </span>
                     <button
                       onClick={() => setIsEditingTemplate(false)}
-                      className="text-xs font-bold text-gray-500 hover:text-gray-900 px-2.5 py-1 rounded-lg hover:bg-lime-100 transition-colors"
+                      className="text-xs font-bold text-gray-500 dark:text-zinc-400 hover:text-gray-900 px-2.5 py-1 rounded-lg hover:bg-lime-100 transition-colors"
                     >
                       {t('qc_cancel')}
                     </button>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase text-gray-600 tracking-wider mb-1">
+                    <label className="block text-[10px] font-black uppercase text-gray-600 dark:text-zinc-400 tracking-wider mb-1">
                       {t('qc_editTemplateNameLabel')}
                     </label>
                     <input
                       type="text"
                       value={editTemplateName}
                       onChange={e => setEditTemplateName(e.target.value)}
-                      className="w-full bg-white border border-lime-300 rounded-xl text-xs p-2.5 font-bold text-gray-900 focus:ring-2 focus:ring-lime-500 outline-none"
+                      className="w-full bg-white dark:bg-zinc-900 border border-lime-300 rounded-xl text-xs p-2.5 font-bold text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-lime-500 outline-none"
                       placeholder="Napr. Akciový Regál Nápoje 2L..."
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase text-gray-600 tracking-wider mb-1">
+                    <label className="block text-[10px] font-black uppercase text-gray-600 dark:text-zinc-400 tracking-wider mb-1">
                       {t('qc_editTemplateDescLabel')}
                     </label>
                     <textarea
                       rows={5}
                       value={editTemplateDesc}
                       onChange={e => setEditTemplateDesc(e.target.value)}
-                      className="w-full bg-white border border-lime-300 rounded-xl text-xs p-2.5 font-semibold text-gray-900 focus:ring-2 focus:ring-lime-500 outline-none resize-none leading-relaxed"
+                      className="w-full bg-white dark:bg-zinc-900 border border-lime-300 rounded-xl text-xs p-2.5 font-semibold text-gray-900 dark:text-zinc-100 focus:ring-2 focus:ring-lime-500 outline-none resize-none leading-relaxed"
                       placeholder="Doplňte pravidlá vystavenia, rozloženia, cenoviek..."
                     />
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
-                      <label className="block text-[10px] font-black uppercase text-gray-600 tracking-wider">
+                      <label className="block text-[10px] font-black uppercase text-gray-600 dark:text-zinc-400 tracking-wider">
                         {t('qc_photosCountLabel', { count: editRefImages.length })}
                       </label>
                       <label className="text-[10px] font-black uppercase text-lime-800 hover:text-lime-900 cursor-pointer flex items-center gap-1 bg-lime-100 hover:bg-lime-200 px-2.5 py-1 rounded-lg transition-colors">
@@ -911,7 +916,7 @@ export const QualityCheckPanel: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-2">
                       {editRefImages.map((img, idx) => (
-                        <div key={idx} className="aspect-video rounded-xl overflow-hidden bg-gray-100 border border-lime-300 relative group shadow-2xs">
+                        <div key={idx} className="aspect-video rounded-xl overflow-hidden bg-gray-100 dark:bg-zinc-800 border border-lime-300 relative group shadow-2xs">
                           <img src={img} className="w-full h-full object-cover" alt={`Edit ref ${idx}`} />
                           <button
                             type="button"
@@ -935,7 +940,7 @@ export const QualityCheckPanel: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsEditingTemplate(false)}
-                      className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors"
+                      className="px-3.5 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 text-gray-700 dark:text-zinc-300 font-bold rounded-xl text-xs transition-colors"
                     >
                       {t('qc_cancel')}
                     </button>
@@ -959,8 +964,8 @@ export const QualityCheckPanel: React.FC = () => {
                         <CheckCircle2 className="w-3 h-3" />
                         {t('qc_partATitle')}
                       </span>
-                      <h3 className="font-black text-gray-900 text-xl mt-2 tracking-tight">{activeTemplate.name}</h3>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                      <h3 className="font-black text-gray-900 dark:text-zinc-100 text-xl mt-2 tracking-tight">{activeTemplate.name}</h3>
+                      <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider mt-0.5">
                         {t('qc_singleSourceTruth')}
                       </p>
                     </div>
@@ -978,7 +983,7 @@ export const QualityCheckPanel: React.FC = () => {
                   {/* Master Reference Photo gallery */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="block text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                      <span className="block text-[10px] font-black uppercase text-gray-400 dark:text-zinc-500 tracking-wider">
                         {t('qc_samplePhotoHeader')}
                       </span>
                       <span className="text-[10px] font-bold text-lime-700 bg-lime-100/80 px-2 py-0.5 rounded-md">
@@ -987,7 +992,7 @@ export const QualityCheckPanel: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {activeTemplate.referenceImages.map((img, idx) => (
-                        <div key={idx} className="aspect-video rounded-2xl overflow-hidden bg-gray-100 border border-lime-200 relative group shadow-2xs">
+                        <div key={idx} className="aspect-video rounded-2xl overflow-hidden bg-gray-100 dark:bg-zinc-800 border border-lime-200 relative group shadow-2xs">
                           <img src={img} className="w-full h-full object-cover" alt={`Ref ${idx}`} />
                           <button 
                             onClick={() => setPreviewImage(img)}
@@ -1010,7 +1015,7 @@ export const QualityCheckPanel: React.FC = () => {
                       <FileText className="w-3.5 h-3.5 text-lime-600" />
                       {t('qc_rulesAndManual')}
                     </span>
-                    <p className="text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-semibold">
+                    <p className="text-xs text-gray-800 dark:text-zinc-200 whitespace-pre-wrap leading-relaxed font-semibold">
                       {activeTemplate.description || 'Nie sú zadané dodatočné slovné inštrukcie. Porovnáva sa výhradne vizuálna zhoda s fotografiou.'}
                     </p>
                   </div>
@@ -1029,7 +1034,7 @@ export const QualityCheckPanel: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="text-[10px] text-gray-400 font-bold border-t border-lime-100 pt-3 flex justify-between">
+                  <div className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold border-t border-lime-100 pt-3 flex justify-between">
                     <span>{t('qc_createdOn', { date: new Date(activeTemplate.createdAt).toLocaleDateString() })}</span>
                     <span>{t('qc_totalAudits', { count: activeTemplate.submissions.length })}</span>
                   </div>
@@ -1040,13 +1045,13 @@ export const QualityCheckPanel: React.FC = () => {
             {/* ======================================================== */}
             {/* LOGICAL BLOCK B: POROVNÁVANÝ AUDIT Z PREDAJNE (ČO SA POROVNÁVA) */}
             {/* ================================================= grand total */}
-            <div className="lg:col-span-7 bg-white rounded-3xl border-2 border-blue-200/80 shadow-xs p-6 space-y-5">
+            <div className="lg:col-span-7 bg-white dark:bg-zinc-900 rounded-3xl border-2 border-blue-200/80 shadow-xs p-6 space-y-5">
               <div className="border-b border-blue-100 pb-4">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white shadow-2xs">
                   <Store className="w-3 h-3" />
                   {t('qc_partBTitle')}
                 </span>
-                <h3 className="font-black text-gray-900 text-xl mt-2 tracking-tight">{t('qc_addStorePhotoTitle')}</h3>
+                <h3 className="font-black text-gray-900 dark:text-zinc-100 text-xl mt-2 tracking-tight">{t('qc_addStorePhotoTitle')}</h3>
                 <p className="text-xs text-blue-700/80 font-bold mt-0.5">
                   {t('qc_addStorePhotoSubtitle', { name: activeTemplate.name })}
                 </p>
@@ -1055,14 +1060,14 @@ export const QualityCheckPanel: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Store selection dropdown */}
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black uppercase text-gray-500 tracking-wider">
+                  <label className="block text-[10px] font-black uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
                     {t('qc_selectStoreStep')}
                   </label>
                   
                   <div className="relative">
                     <div 
                       onClick={() => setIsStoreSelectOpen(!isStoreSelectOpen)}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl text-xs p-3.5 flex justify-between items-center cursor-pointer hover:bg-gray-100/70 transition-colors font-bold text-gray-800"
+                      className="w-full bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-800 rounded-2xl text-xs p-3.5 flex justify-between items-center cursor-pointer hover:bg-gray-100/70 transition-colors font-bold text-gray-800 dark:text-zinc-200"
                     >
                       <span>
                         {selectedStoreName === 'custom' 
@@ -1074,14 +1079,14 @@ export const QualityCheckPanel: React.FC = () => {
                     </div>
 
                     {isStoreSelectOpen && (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-2xl shadow-2xl z-30 overflow-hidden text-xs max-h-60 flex flex-col">
-                        <div className="p-2 border-b border-gray-100 bg-gray-50">
+                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-2xl z-30 overflow-hidden text-xs max-h-60 flex flex-col">
+                        <div className="p-2 border-b border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/60">
                           <input
                             type="text"
                             placeholder={t('qc_searchStore')}
                             value={searchStoreTerm}
                             onChange={e => setSearchStoreTerm(e.target.value)}
-                            className="w-full bg-white border border-gray-200 rounded-xl p-2 text-xs font-bold outline-none"
+                            className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-2 text-xs font-bold outline-none"
                             onClick={(e) => e.stopPropagation()}
                           />
                         </div>
@@ -1095,12 +1100,12 @@ export const QualityCheckPanel: React.FC = () => {
                               }}
                               className="p-3 hover:bg-blue-50/70 cursor-pointer transition-colors flex items-center justify-between"
                             >
-                              <span className="font-bold text-gray-900">{st.name}</span>
-                              <span className="text-[10px] text-gray-400 font-bold uppercase">{st.chain} • {st.city}</span>
+                              <span className="font-bold text-gray-900 dark:text-zinc-100">{st.name}</span>
+                              <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase">{st.chain} • {st.city}</span>
                             </div>
                           ))}
                           {filteredStoresList.length === 0 && (
-                            <div className="p-3 text-center text-gray-400 text-[11px] font-bold">
+                            <div className="p-3 text-center text-gray-400 dark:text-zinc-500 text-[11px] font-bold">
                               {t('qc_searchStore')}
                             </div>
                           )}
@@ -1110,7 +1115,7 @@ export const QualityCheckPanel: React.FC = () => {
                             setSelectedStoreName('custom');
                             setIsStoreSelectOpen(false);
                           }}
-                          className="p-3 bg-blue-50 text-blue-800 font-black text-center border-t border-gray-100 hover:bg-blue-100 cursor-pointer transition-colors uppercase tracking-wider text-[10px]"
+                          className="p-3 bg-blue-50 text-blue-800 font-black text-center border-t border-gray-100 dark:border-zinc-800 hover:bg-blue-100 cursor-pointer transition-colors uppercase tracking-wider text-[10px]"
                         >
                           {t('qc_enterStoreManually')}
                         </div>
@@ -1125,7 +1130,7 @@ export const QualityCheckPanel: React.FC = () => {
                         placeholder={t('qc_enterStoreNamePlaceholder')}
                         value={customStoreName}
                         onChange={e => setCustomStoreName(e.target.value)}
-                        className="w-full bg-white border border-blue-300 rounded-xl text-xs p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                        className="w-full bg-white dark:bg-zinc-900 border border-blue-300 rounded-xl text-xs p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold"
                       />
                     </div>
                   )}
@@ -1133,12 +1138,12 @@ export const QualityCheckPanel: React.FC = () => {
 
                 {/* Upload Target store photo */}
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] font-black uppercase text-gray-500 tracking-wider">
+                  <label className="block text-[10px] font-black uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
                     {t('qc_actualShelfPhotoStep')}
                   </label>
                   
                   {!storeImage ? (
-                    <div className="border-2 border-dashed border-gray-300 rounded-2xl p-4 hover:border-blue-500 hover:bg-blue-50/30 transition-all text-center cursor-pointer relative bg-gray-50/50 h-[104px] flex flex-col justify-center items-center">
+                    <div className="border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-2xl p-4 hover:border-blue-500 hover:bg-blue-50/30 transition-all text-center cursor-pointer relative bg-gray-50/50 dark:bg-zinc-900/60 h-[104px] flex flex-col justify-center items-center">
                       <input
                         type="file"
                         accept="image/*"
@@ -1146,8 +1151,8 @@ export const QualityCheckPanel: React.FC = () => {
                         className="absolute inset-0 opacity-0 cursor-pointer"
                       />
                       <Upload className="w-6 h-6 text-blue-600 mb-1" />
-                      <span className="text-xs font-black text-gray-800">{t('qc_uploadStorePhoto')}</span>
-                      <span className="text-[9px] text-gray-400 font-bold">{t('qc_clickOrDrag')}</span>
+                      <span className="text-xs font-black text-gray-800 dark:text-zinc-200">{t('qc_uploadStorePhoto')}</span>
+                      <span className="text-[9px] text-gray-400 dark:text-zinc-500 font-bold">{t('qc_clickOrDrag')}</span>
                     </div>
                   ) : (
                     <div className="relative rounded-2xl overflow-hidden border border-blue-200 aspect-video group shadow-xs">
@@ -1201,20 +1206,20 @@ export const QualityCheckPanel: React.FC = () => {
           {/* ======================================================== */}
           {/* LOGICAL BLOCK C: VÝSLEDKY AUDITOV & POROVNANIE SIDE-BY-SIDE */}
           {/* ======================================================== */}
-          <div className="bg-white rounded-3xl border border-gray-150 shadow-xs p-6 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-xs p-6 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-800 pb-4">
               <div>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-purple-600 text-white shadow-2xs">
                   <ClipboardList className="w-3 h-3" />
                   {t('qc_partCTitle')}
                 </span>
-                <h3 className="font-black text-gray-900 text-lg mt-1 tracking-tight">
+                <h3 className="font-black text-gray-900 dark:text-zinc-100 text-lg mt-1 tracking-tight">
                   {t('qc_complianceEvaluationTitle', { count: filteredSubmissions.length })}
                 </h3>
               </div>
 
               {/* Filter tabs */}
-              <div className="flex bg-gray-100 p-1.5 rounded-2xl border border-gray-200 text-xs font-black">
+              <div className="flex bg-gray-100 dark:bg-zinc-800 p-1.5 rounded-2xl border border-gray-200 dark:border-zinc-800 text-xs font-black">
                 <button
                   onClick={() => setScoreFilter('all')}
                   className={`px-3.5 py-1.5 rounded-xl transition-all ${scoreFilter === 'all' ? 'bg-gray-900 text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'}`}
@@ -1238,10 +1243,10 @@ export const QualityCheckPanel: React.FC = () => {
 
             {/* Submissions list */}
             {filteredSubmissions.length === 0 ? (
-              <div className="py-16 text-center text-gray-400 text-xs flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+              <div className="py-16 text-center text-gray-400 dark:text-zinc-500 text-xs flex flex-col items-center justify-center bg-gray-50/50 dark:bg-zinc-900/60 rounded-2xl border border-dashed border-gray-200 dark:border-zinc-800">
                 <ClipboardList className="w-10 h-10 text-gray-300 mb-2" />
-                <p className="font-extrabold text-gray-700 text-sm">{t('qc_noAuditsFilter')}</p>
-                <p className="text-gray-400 mt-1">{t('qc_noAuditsFilterSub')}</p>
+                <p className="font-extrabold text-gray-700 dark:text-zinc-300 text-sm">{t('qc_noAuditsFilter')}</p>
+                <p className="text-gray-400 dark:text-zinc-500 mt-1">{t('qc_noAuditsFilterSub')}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1266,23 +1271,23 @@ export const QualityCheckPanel: React.FC = () => {
                       <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-3.5">
                           {/* Image preview thumbnail */}
-                          <div className="w-14 h-14 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden relative shrink-0">
+                          <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-800 overflow-hidden relative shrink-0">
                             {sub.imageUrl ? (
                               <img src={sub.imageUrl} className="w-full h-full object-cover" alt={sub.storeName} />
                             ) : (
-                              <Upload className="w-5 h-5 text-gray-400 m-4" />
+                              <Upload className="w-5 h-5 text-gray-400 dark:text-zinc-500 m-4" />
                             )}
                           </div>
 
                           <div>
                             <div className="flex items-center gap-2">
-                              <h4 className="font-extrabold text-gray-900 text-sm">{sub.storeName}</h4>
-                              <span className="text-[10px] text-gray-400 font-bold bg-gray-100 px-2 py-0.5 rounded-md">
+                              <h4 className="font-extrabold text-gray-900 dark:text-zinc-100 text-sm">{sub.storeName}</h4>
+                              <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">
                                 {new Date(sub.createdAt).toLocaleDateString()} {new Date(sub.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                               </span>
                             </div>
-                            <p className="text-xs text-gray-500 font-medium mt-0.5">
-                              Porovnávané voči vzoru: <strong className="text-gray-800">{activeTemplate.name}</strong>
+                            <p className="text-xs text-gray-500 dark:text-zinc-400 font-medium mt-0.5">
+                              Porovnávané voči vzoru: <strong className="text-gray-800 dark:text-zinc-200">{activeTemplate.name}</strong>
                             </p>
                           </div>
                         </div>
@@ -1345,14 +1350,14 @@ export const QualityCheckPanel: React.FC = () => {
                             </button>
                             <button
                               onClick={() => setExpandedSubmissionId(isExpanded ? null : sub.id)}
-                              className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all"
+                              className="p-2 text-gray-500 dark:text-zinc-400 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-xl transition-all"
                               title={t('qc_details')}
                             >
                               <Eye className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteSubmission(sub.id)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                              className="p-2 text-gray-400 dark:text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                               title={t('qc_deleteReport')}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1363,26 +1368,26 @@ export const QualityCheckPanel: React.FC = () => {
 
                       {/* Expanded Report Panel Details with Side-By-Side Visual Comparison */}
                       {isExpanded && (
-                        <div className="border-t border-gray-150 p-6 bg-gradient-to-b from-gray-50 to-white animate-fade-in space-y-6">
+                        <div className="border-t border-gray-150 dark:border-zinc-800 p-6 bg-gradient-to-b from-gray-50 to-white animate-fade-in space-y-6">
                           
                           {/* VISUAL SIDE BY SIDE COMPARISON PREVIEW */}
                           {isSuccess && (
                             <div className="space-y-4">
-                              <h5 className="text-xs font-black uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                              <h5 className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-zinc-400 flex items-center gap-1.5">
                                 <ArrowRightLeft className="w-4 h-4 text-lime-600" />
                                 {t('qc_sideBySideTitle')}
                               </h5>
 
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* LEFT: Reference Planogram */}
-                                <div className="bg-white p-4 rounded-2xl border-2 border-lime-300 shadow-xs space-y-2">
+                                <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border-2 border-lime-300 shadow-xs space-y-2">
                                   <div className="flex justify-between items-center">
                                     <span className="text-[10px] font-black uppercase tracking-wider text-lime-800 bg-lime-100 px-2.5 py-0.5 rounded-md">
                                       {t('qc_sampleA')}
                                     </span>
-                                    <span className="text-[10px] text-gray-400 font-bold">{t('qc_goldStandard')}</span>
+                                    <span className="text-[10px] text-gray-400 dark:text-zinc-500 font-bold">{t('qc_goldStandard')}</span>
                                   </div>
-                                  <div className="aspect-video rounded-xl overflow-hidden bg-gray-100 border border-gray-200 relative group">
+                                  <div className="aspect-video rounded-xl overflow-hidden bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-800 relative group">
                                     {activeTemplate.referenceImages?.[0] && (
                                       <img 
                                         src={activeTemplate.referenceImages[0]} 
@@ -1392,24 +1397,24 @@ export const QualityCheckPanel: React.FC = () => {
                                       />
                                     )}
                                   </div>
-                                  <p className="text-[11px] text-gray-600 font-semibold line-clamp-2">
+                                  <p className="text-[11px] text-gray-600 dark:text-zinc-400 font-semibold line-clamp-2">
                                     <strong>Manuál:</strong> {activeTemplate.description || 'Bez textových pokynov'}
                                   </p>
                                 </div>
 
                                 {/* RIGHT: Store photo */}
-                                <div className={`p-4 rounded-2xl border-2 shadow-xs space-y-2 bg-white ${isLowCompliance ? 'border-rose-300' : 'border-emerald-300'}`}>
+                                <div className={`p-4 rounded-2xl border-2 shadow-xs space-y-2 bg-white dark:bg-zinc-900 ${isLowCompliance ? 'border-rose-300' : 'border-emerald-300'}`}>
                                   <div className="flex justify-between items-center">
                                     <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md ${
                                       isLowCompliance ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
                                     }`}>
                                       {t('qc_sampleB', { store: sub.storeName })}
                                     </span>
-                                    <span className="text-[10px] font-black text-gray-500">
+                                    <span className="text-[10px] font-black text-gray-500 dark:text-zinc-400">
                                       Zhoda: {sub.complianceScore}%
                                     </span>
                                   </div>
-                                  <div className="aspect-video rounded-xl overflow-hidden bg-gray-100 border border-gray-200 relative group">
+                                  <div className="aspect-video rounded-xl overflow-hidden bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-800 relative group">
                                     <img 
                                       src={sub.imageUrl} 
                                       className="w-full h-full object-cover cursor-zoom-in" 
@@ -1417,18 +1422,18 @@ export const QualityCheckPanel: React.FC = () => {
                                       alt="Store sample"
                                     />
                                   </div>
-                                  <p className="text-[11px] text-gray-600 font-semibold">
+                                  <p className="text-[11px] text-gray-600 dark:text-zinc-400 font-semibold">
                                     <strong>Snímka:</strong> {sub.fileName || 'Fotografia z terénu'}
                                   </p>
                                 </div>
                               </div>
 
                               {/* AI Reason & Discrepancy analysis */}
-                              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-2">
-                                <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">
+                              <div className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-2xs space-y-2">
+                                <span className="text-[10px] font-black uppercase text-gray-400 dark:text-zinc-500 tracking-wider block">
                                   {t('qc_aiReasonHeader')}
                                 </span>
-                                <div className="text-xs text-gray-800 leading-relaxed font-medium whitespace-pre-wrap">
+                                <div className="text-xs text-gray-800 dark:text-zinc-200 leading-relaxed font-medium whitespace-pre-wrap">
                                   <TranslatedText text={sub.reason || 'Slovné hodnotenie nebolo k dispozícii.'} targetLanguage={language} />
                                 </div>
                               </div>
@@ -1455,22 +1460,22 @@ export const QualityCheckPanel: React.FC = () => {
       {/* FULL RESOLUTION COMPARISON MODAL */}
       {comparisonModalSubmission && activeTemplate && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 md:p-8 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-6xl w-full max-h-[92vh] overflow-y-auto p-6 md:p-8 space-y-6 text-left shadow-2xl relative border border-gray-200">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl max-w-6xl w-full max-h-[92vh] overflow-y-auto p-6 md:p-8 space-y-6 text-left shadow-2xl relative border border-gray-200 dark:border-zinc-800">
             <button
               onClick={() => setComparisonModalSubmission(null)}
-              className="absolute top-5 right-5 p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 transition-all"
+              className="absolute top-5 right-5 p-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 rounded-full text-gray-600 dark:text-zinc-400 transition-all"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div className="border-b border-gray-100 pb-4 pr-10">
+            <div className="border-b border-gray-100 dark:border-zinc-800 pb-4 pr-10">
               <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 border border-purple-100 px-3 py-1 rounded-lg">
                 {t('qc_detailedSideBySide')}
               </span>
-              <h3 className="text-xl font-black text-gray-900 mt-2">
+              <h3 className="text-xl font-black text-gray-900 dark:text-zinc-100 mt-2">
                 {t('qc_auditVsPlanogram', { store: comparisonModalSubmission.storeName, name: activeTemplate.name })}
               </h3>
-              <p className="text-xs text-gray-500 font-bold mt-0.5">
+              <p className="text-xs text-gray-500 dark:text-zinc-400 font-bold mt-0.5">
                 {t('qc_calculatedMatch', { score: comparisonModalSubmission.complianceScore, date: new Date(comparisonModalSubmission.createdAt).toLocaleString() })}
               </p>
             </div>
@@ -1484,11 +1489,11 @@ export const QualityCheckPanel: React.FC = () => {
                   <span className="text-[10px] font-black text-lime-700 bg-lime-100 px-2 py-0.5 rounded-md">Referencia</span>
                 </div>
                 {activeTemplate.referenceImages?.[0] && (
-                  <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-200 aspect-video">
+                  <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-200 dark:border-zinc-800 aspect-video">
                     <img src={activeTemplate.referenceImages[0]} className="w-full h-full object-contain" alt="Reference" />
                   </div>
                 )}
-                <div className="bg-white p-3 rounded-xl border border-lime-200 text-xs text-gray-700 font-medium">
+                <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-lime-200 text-xs text-gray-700 dark:text-zinc-300 font-medium">
                   <strong>Akceptovaný Manuál:</strong> {activeTemplate.description || 'Bez sprievodného textu.'}
                 </div>
               </div>
@@ -1499,19 +1504,19 @@ export const QualityCheckPanel: React.FC = () => {
                   <h4 className="font-extrabold text-xs uppercase tracking-wider text-blue-900">2. {t('qc_sampleB', { store: comparisonModalSubmission.storeName })}</h4>
                   <span className="text-[10px] font-black text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md">Auditovaný regál</span>
                 </div>
-                <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-200 aspect-video">
+                <div className="rounded-xl overflow-hidden bg-black/5 border border-gray-200 dark:border-zinc-800 aspect-video">
                   <img src={comparisonModalSubmission.imageUrl} className="w-full h-full object-contain" alt="Store audit" />
                 </div>
-                <div className="bg-white p-3 rounded-xl border border-blue-200 text-xs text-gray-700 font-medium">
+                <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-blue-200 text-xs text-gray-700 dark:text-zinc-300 font-medium">
                   <strong>Súbor:</strong> {comparisonModalSubmission.fileName}
                 </div>
               </div>
             </div>
 
             {/* Detailed commentary */}
-            <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 space-y-2">
-              <h5 className="text-xs font-black uppercase text-gray-700 tracking-wider">{t('qc_aiReasonHeader')}</h5>
-              <div className="text-xs text-gray-800 leading-relaxed font-medium whitespace-pre-wrap">
+            <div className="bg-gray-50 dark:bg-zinc-800/60 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 space-y-2">
+              <h5 className="text-xs font-black uppercase text-gray-700 dark:text-zinc-300 tracking-wider">{t('qc_aiReasonHeader')}</h5>
+              <div className="text-xs text-gray-800 dark:text-zinc-200 leading-relaxed font-medium whitespace-pre-wrap">
                 <TranslatedText text={comparisonModalSubmission.reason || 'Bez popisu.'} targetLanguage={language} />
               </div>
             </div>
